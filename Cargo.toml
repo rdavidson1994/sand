@@ -1,0 +1,13 @@
+[package]
+name = "sand"
+version = "0.1.0"
+authors = ["rdavidson <rdavidson@accusoft.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+itertools = "0.9.0"
+bitflags = "1.2.1"
+crossterm = "0.17.5"
+rand = "0.7.3"
