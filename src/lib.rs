@@ -1,20 +1,35 @@
 //use itertools::iproduct;
 use bitflags::bitflags;
-use crossterm::{QueueableCommand, cursor};
-use std::io::{Write, stdout, Stdout};
+// use crossterm::{QueueableCommand, cursor};
+// use std::io::{Write, stdout, Stdout};
 use rand::{Rng, thread_rng};
-use std::time::Instant;
+//use std::time::Instant;
 use std::convert::TryFrom;
 use std::any::type_name;
 use std::fmt::Display;
 use num::Bounded;
-const WORLD_WIDTH : i32 = 40;
-const WORLD_HEIGHT: i32 = 40;
+const WORLD_WIDTH : i32 = 80;
+const WORLD_HEIGHT: i32 = 80;
 const WORLD_SIZE : i32 = WORLD_HEIGHT*WORLD_WIDTH;
-const DISPLAY_PERIOD : i32 = 20;
+const TILE_PIXELS : i32 = 5;
+const WINDOW_PIXEL_WIDTH : i32 = WORLD_WIDTH * TILE_PIXELS;
+const WINDOW_PIXEL_HEIGHT : i32 = WORLD_HEIGHT * TILE_PIXELS;
+const LOGICAL_FRAMES_PER_DISPLAY_FRAME : i32 = 10;
 const GRAVITY_PERIOD : i32 = 20;
 const BASE_RESTITUTION : f64 = 0.5;
 const PAUSE_VELOCITY : i8 = 3;
+const SECONDS_PER_LOGICAL_FRAME : f64 = 1.0 / 1400.0; // Based on square = 1inch
+//graphics imports
+extern crate glutin_window;
+extern crate graphics;
+extern crate opengl_graphics;
+extern crate piston;
+
+use glutin_window::GlutinWindow as Window;
+use opengl_graphics::{GlGraphics, OpenGL};
+use piston::event_loop::{EventSettings, Events};
+use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::window::WindowSettings;
 
 
 bitflags! {
@@ -29,8 +44,9 @@ bitflags! {
 #[derive(Default)]
 struct Element {
     flags : ElementFlags,
-    symbol_l: char,
-    symbol_r: char,
+    // symbol_l: char,
+    // symbol_r: char,
+    color : [f32; 4],
     mass: i8,
 }
 
@@ -40,12 +56,6 @@ struct Vector {
     x : i8,
     y : i8,
 }
-
-// impl Vector {
-//     fn new(x: i8, y: i8) -> Self {
-//         Vector { x, y }
-//     }
-// }
 
 fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
     let v1 = v1 as f64;
@@ -121,7 +131,6 @@ fn in_bounds(x: i32, y: i32) -> bool {
     && y >= 0 && y < WORLD_HEIGHT
 }
 
-
 #[inline]
 fn below(position: usize) -> Option<usize> {
     position.checked_add(WORLD_WIDTH as usize)
@@ -160,6 +169,7 @@ fn adjacent_x(position1: usize, position2: usize) -> bool {
 }
 
 #[inline]
+#[allow(dead_code)]
 fn adjacent_y(position1: usize, position2: usize) -> bool {
     let is_above = match above(position1) {
         None => false,
@@ -207,7 +217,6 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
                 }
                 else {
                     s.elastic_collide_x(d);
-                    // oh no. Mutate pair made this bad :(
                     unpause(world, destination);
                 }
             }
@@ -263,7 +272,8 @@ fn pause_particles(world: &mut World) {
     }
 }
 
-fn apply_velocity(world: &mut World) {
+fn apply_velocity(world: &mut World) -> bool {
+    let mut needs_update = false;
     let mut swaps : Vec<(usize, usize)> = vec![];
     for i in 0..WORLD_SIZE as usize {
         if let Some(ref mut tile) = &mut world[i] {
@@ -273,6 +283,7 @@ fn apply_velocity(world: &mut World) {
                 tile.position.x = new_x;
                 tile.position.y = new_y;
                 if overflowed_x || overflowed_y {
+                    needs_update = true;
                     let delta_x = if overflowed_x {
                         tile.velocity.x.signum()
                     } else {
@@ -292,10 +303,6 @@ fn apply_velocity(world: &mut World) {
                     {
                         swaps.push((i, point(new_grid_x, new_grid_y)));
                     }
-                    else
-                    {
-                        print!("");
-                    }
                 }
             }
         }
@@ -305,7 +312,9 @@ fn apply_velocity(world: &mut World) {
         assert!(in_bounds(coords(i).0, coords(i).1));
         assert!(in_bounds(coords(j).0, coords(j).1));
         move_particle(i, j, world);
-    }
+    };
+
+    needs_update
 }
 
 fn clamp_convert<T,V>(t: T) -> V
@@ -317,11 +326,9 @@ fn clamp_convert<T,V>(t: T) -> V
         v
     }
     else if t > V::max_value().into() {
-        //dbg!("CLAMP CONVERT MAX");
         V::max_value()
     }
     else if t < V::min_value().into() {
-        //dbg!("CLAMP CONVERT MIN");
         V::min_value()
     }
     else {
@@ -351,41 +358,6 @@ fn apply_gravity(world: &mut World) {
     }
 }
 
-fn write_char_twice(input: char, out: &mut Stdout) {
-    for _ in 0..2 {
-        write_char(input, out)
-    }
-}
-
-fn write_char(input: char, out: &mut Stdout) {
-    out.write(&[input as u8]).unwrap();
-}
-
-fn display(world: &World, timestr: &str) {
-    let mut stdout = stdout();
-    stdout.queue(cursor::SavePosition).unwrap();
-    stdout.write(timestr.as_bytes()).unwrap();
-    write_char('\n', &mut stdout);
-    for i in 0..WORLD_SIZE as usize {
-        if i % WORLD_WIDTH as usize == 0 {
-            write_char('\n', &mut stdout);
-        }
-        match &world[i] {
-            Some(tile) => {
-                write_char(tile.element.symbol_l, &mut stdout);
-                write_char(tile.element.symbol_r, &mut stdout);
-                //stdout.write(format!("{}", tile.element.symbol).as_bytes()).unwrap();
-                //print!("{}", tile.element.symbol);
-            }
-            None => {
-                write_char_twice(' ', &mut stdout);
-            }
-        }
-    }
-    stdout.queue(cursor::RestorePosition).unwrap();
-    stdout.flush().unwrap();
-}
-
 
 fn coords(i: usize) -> (i32, i32) {
     ((i % (WORLD_WIDTH as usize)) as i32, (i / (WORLD_WIDTH as usize)) as i32)
@@ -396,41 +368,30 @@ fn point(x: i32 , y: i32) -> usize {
 }
 
 static WALL : Element = Element {
-    symbol_l: '#',
-    symbol_r: '#',
     flags: ElementFlags::FIXED,
+    color: [1.0, 1.0, 1.0, 1.0],
     mass: 127,
 };
 
 static ROCK : Element = Element {
-    symbol_l: '[',
-    symbol_r: ']',
     flags: ElementFlags::GRAVITY,
+    color: [0.5, 0.5, 0.5, 1.0],
     mass: 50
 };
 
 static SAND : Element = Element {
-    symbol_l: '(',
-    symbol_r: ')',
     flags: ElementFlags::GRAVITY,
+    color: [1.0, 1.0, 0.5, 1.0],
     mass: 10
 };
 
 static GAS : Element = Element {
-    symbol_l: '~',
-    symbol_r: '~',
     flags: ElementFlags::NONE,
+    color: [1.0, 0.5, 1.0, 1.0],
     mass: 3
 };
 
-static HEAVY_GAS : Element = Element {
-    symbol_l: '&',
-    symbol_r: '&',
-    flags: ElementFlags::NONE,
-    mass: 6
-};
-
-type World = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];//Vec<Option<Tile>>;
+type World = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];//Vec<Option<Tile>>;c
 
 fn unpause(world: &mut World, initial_position: usize) {
     let mut current_position = initial_position;
@@ -450,6 +411,17 @@ fn unpause(world: &mut World, initial_position: usize) {
     }
 }
 
+#[allow(dead_code)]
+fn populate_world_bullet(world: &mut World) {
+    world[point(10,10)] = Some(Tile {
+        element: &GAS,
+        position: Vector {x: 0, y: 0},
+        velocity: Vector {x: 127, y:0},
+        paused: false,
+    })
+}
+
+#[allow(dead_code)]
 fn populate_world_pileup(world: &mut World) {
     let mut rng = thread_rng();
     for x in 5..10 {
@@ -507,7 +479,7 @@ fn populate_world(world: &mut World) {
     for i in 0..45 {
         let x_offset = rng.gen_range(0,20);
         let y_offset = rng.gen_range(0,20);
-        let element = &SAND;
+        //let element = &SAND;
         let element = if i < 15 {
             &ROCK
         } else if i < 30 {
@@ -530,24 +502,99 @@ fn populate_world(world: &mut World) {
     }
 }
 
+struct App {
+    gl: GlGraphics,
+    time_balance: f64,
+    frame_balance: i32,
+    turn: i32,
+    world: World,
+    needs_render: bool,
+}
+
+impl App {
+    fn render(&mut self, args: &RenderArgs) {
+        // println!("FPS: {}", 1.0/args.ext_dt);
+        if !self.needs_render {
+            return;
+        }
+        use graphics::*;
+
+        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
+        let world_ref = &self.world;
+        self.gl.draw(args.viewport(), |c, gl| {
+            // Clear the screen.
+            clear(BLACK, gl);
+            let transform = c.transform;
+            for i in 0..WORLD_SIZE as usize {
+                if let Some(tile) = &world_ref[i] {
+                    let (x, y) = coords(i);
+                    let square = rectangle::square((x*TILE_PIXELS) as f64, (y*TILE_PIXELS) as f64, TILE_PIXELS as f64);
+                    rectangle(tile.element.color, square, transform, gl);
+                }
+            }
+        });
+        self.needs_render = false;
+    }
+
+    fn update(&mut self, args: &UpdateArgs) {
+
+        self.time_balance += args.dt;
+        let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
+        let mut i = 0;
+        while i < frames_to_render.trunc() as i32 {
+            pause_particles(&mut self.world);
+            if self.turn % GRAVITY_PERIOD == 0 {
+                apply_gravity(&mut self.world);
+            }
+            apply_velocity(&mut self.world);
+            self.turn += 1;
+            i += 1;
+        }
+        self.time_balance -= (i as f64) * SECONDS_PER_LOGICAL_FRAME;
+        self.frame_balance += i;
+        if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
+            self.needs_render = true;
+            self.frame_balance = 0;
+        }
+    }
+}
+
 pub fn game_loop() {
+    let opengl = OpenGL::V3_2;
+
+    // Create an Glutin window.
+    let mut window: Window = WindowSettings::new("Falling sand", [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32])
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
+
+
     const EMPTY_TILE : Option<Tile> = None;
     let mut world = [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize];
-    let mut i = 0;
+    //let mut i = 0;
     create_walls(&mut world);
     populate_world(&mut world);
-    let mut now = Instant::now();
-    loop {
-        if i % DISPLAY_PERIOD == 0 {
-            let timestr = format!("Computed in {} ms", now.elapsed().as_millis());
-            display(&world, &timestr);
-            now = Instant::now();
+
+
+    let mut app = App {
+        gl: GlGraphics::new(opengl),
+        time_balance: 0.0,
+        frame_balance: 0,
+        turn: 0,
+        world: world,
+        needs_render: true,
+    };
+
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(&mut window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
         }
-        pause_particles(&mut world);
-        if i % GRAVITY_PERIOD == 0 {
-            apply_gravity(&mut world);
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
         }
-        apply_velocity(&mut world);
-        i += 1;
     }
 }
