@@ -1,4 +1,4 @@
-//use itertools::iproduct;
+use itertools::iproduct;
 use bitflags::bitflags;
 // use crossterm::{QueueableCommand, cursor};
 // use std::io::{Write, stdout, Stdout};
@@ -7,6 +7,7 @@ use rand::{Rng, thread_rng};
 use std::convert::TryFrom;
 use std::any::type_name;
 use std::fmt::Display;
+use std::ops::{Index, IndexMut};
 use num::Bounded;
 const WORLD_WIDTH : i32 = 80;
 const WORLD_HEIGHT: i32 = 80;
@@ -16,6 +17,7 @@ const WINDOW_PIXEL_WIDTH : i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT : i32 = WORLD_HEIGHT * TILE_PIXELS;
 const LOGICAL_FRAMES_PER_DISPLAY_FRAME : i32 = 10;
 const GRAVITY_PERIOD : i32 = 20;
+const DECAY_REACTION_PERIOD : i32 = 100;
 const BASE_RESTITUTION : f64 = 0.5;
 const PAUSE_VELOCITY : i8 = 3;
 const SECONDS_PER_LOGICAL_FRAME : f64 = 1.0 / 1400.0; // Based on square = 1inch
@@ -31,6 +33,29 @@ use piston::event_loop::{EventSettings, Events};
 use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
 use piston::window::WindowSettings;
 
+trait PairwiseMutate {
+    type T;
+    fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T);
+}
+
+impl<U> PairwiseMutate for [U] {
+    type T = U;
+    fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T) {
+        let swapped = second < first;
+        let minimum = if !swapped { first } else { second };
+        let maximum = if !swapped { second } else { first };
+        if minimum == maximum {
+            panic!("Attempt to mutate a pair consisting of the same index twice.")
+        }
+        let (head, tail) = self.split_at_mut(minimum + 1);
+        if !swapped {
+            (&mut head[minimum], &mut tail[maximum - minimum - 1])
+        }
+        else {
+            (&mut tail[maximum - minimum - 1], &mut head[minimum])
+        }
+    }
+}
 
 bitflags! {
     #[derive(Default)]
@@ -48,6 +73,8 @@ struct Element {
     // symbol_r: char,
     color : [f32; 4],
     mass: i8,
+    id: u32,
+    decay_reaction: Option<fn(&mut World, usize)>
 }
 
 
@@ -182,26 +209,9 @@ fn adjacent_y(position1: usize, position2: usize) -> bool {
     is_above || is_below
 }
 
-
-fn mutate_pair(data: &mut World, first: usize, second: usize) -> (&mut Option<Tile>, &mut Option<Tile>) {
-    let swapped = second < first;
-    let minimum = if !swapped { first } else { second };
-    let maximum = if !swapped { second } else { first };
-    if minimum == maximum {
-        panic!("Attempt to mutate a pair consisting of the same index twice.")
-    }
-    let (head, tail) = data.split_at_mut(minimum + 1);
-    if !swapped {
-        (&mut head[minimum], &mut tail[maximum - minimum - 1])
-    }
-    else {
-        (&mut tail[maximum - minimum - 1], &mut head[minimum])
-    }
-}
-
 fn move_particle(source: usize, destination: usize, world: &mut World) {
     // TODO: Switch this all up to use world[i] instead borrowing
-    let (source_tile, dest_tile) = mutate_pair(world, source, destination);
+    let (source_tile, dest_tile) = world.mutate_pair(source, destination);
     match (source_tile, dest_tile) {
     //match (world[source].as_mut(), world[destination].as_mut()) {
         (None, None) | (None, Some(_)) => {
@@ -229,6 +239,8 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
                     unpause(world, destination);
                 }
             }
+            world.trigger_collision_side_effects(source, destination);
+            world.trigger_collision_reactions(source, destination);
         }
     }
 }
@@ -358,6 +370,15 @@ fn apply_gravity(world: &mut World) {
     }
 }
 
+fn apply_decay_reactions(world: &mut World) {
+    for i in 0..WORLD_SIZE as usize {
+        if let Some(tile) = &world[i] {
+            if let Some(reaction) = tile.element.decay_reaction {
+                reaction(world, i);
+            }
+        }
+    }
+}
 
 fn coords(i: usize) -> (i32, i32) {
     ((i % (WORLD_WIDTH as usize)) as i32, (i / (WORLD_WIDTH as usize)) as i32)
@@ -371,27 +392,213 @@ static WALL : Element = Element {
     flags: ElementFlags::FIXED,
     color: [1.0, 1.0, 1.0, 1.0],
     mass: 127,
+    id: 0,
+    decay_reaction: None,
 };
 
 static ROCK : Element = Element {
     flags: ElementFlags::GRAVITY,
     color: [0.5, 0.5, 0.5, 1.0],
-    mass: 50
+    mass: 50,
+    id: 1,
+    decay_reaction: None,
 };
 
 static SAND : Element = Element {
     flags: ElementFlags::GRAVITY,
     color: [1.0, 1.0, 0.5, 1.0],
-    mass: 10
+    mass: 10,
+    id: 2,
+    decay_reaction: None,
 };
 
 static GAS : Element = Element {
     flags: ElementFlags::NONE,
     color: [1.0, 0.5, 1.0, 1.0],
-    mass: 3
+    mass: 3,
+    id: 3,
+    decay_reaction: None,
 };
 
-type World = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];//Vec<Option<Tile>>;c
+static FIRE : Element = Element {
+    flags: ElementFlags::NONE,
+    color: [1.0, 0.0, 0.0, 1.0],
+    mass: 3,
+    id: 4,
+    decay_reaction: Some(|w, i| {
+        let mut rng = thread_rng();
+        if rng.gen_range(0,20) == 0 {
+            w[i].as_mut().unwrap().element = &ASH;
+        }
+    }),
+};
+
+static ASH : Element = Element {
+    flags: ElementFlags::GRAVITY,
+    color: [0.3, 0.3, 0.3, 1.0],
+    mass: 3,
+    id: 5,
+    decay_reaction: None,
+};
+
+static WATER : Element = Element {
+    flags: ElementFlags::GRAVITY,
+    color: [0.0, 0.0, 1.0, 1.0],
+    mass: 8,
+    id: 6,
+    decay_reaction: Some(|w, p| {
+        // Water "jiggles" slightly
+        let mut rng = thread_rng();
+        let water_tile = w[p].as_mut().unwrap();
+        water_tile.velocity.x += rng.gen_range(-3, 3);
+    }),
+};
+
+fn burn(world: &mut World, _fire_loc: usize, other_loc: usize) {
+    let mut rng = thread_rng();
+    for_neighbors(other_loc, |position| {
+        match &world[position] {
+            Some(_) => {
+                 world[position].as_mut().unwrap().paused =false;
+            },
+            None => {
+                world[position] = Some(Tile {
+                    element: &FIRE,
+                    paused: false,
+                    velocity: Vector {
+                        x: rng.gen_range(-10,10),
+                        y: rng.gen_range(-10,10),
+                    },
+                    position: Vector {
+                        x: rng.gen_range(-128,127),
+                        y: rng.gen_range(-128,127),
+                    },
+                })
+            }
+        }
+    });    
+}
+
+//type World = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];//Vec<Option<Tile>>;c
+
+type CollisionSideEffect = fn(&mut World, usize, usize);
+type CollisionReaction = fn(&mut Tile, &mut Tile);
+
+struct World {
+    grid: [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
+    collision_side_effects: std::collections::HashMap<
+        (u32, u32),
+        CollisionSideEffect
+    >,
+    collision_reactions: std::collections::HashMap<
+        (u32, u32),
+        CollisionReaction
+    >
+}
+
+impl World {
+    fn swap(&mut self, i: usize, j: usize) {
+        self.grid.swap(i, j);
+    }
+
+    fn register_collision_reaction(
+        &mut self,
+        element1: &Element,
+        element2: &Element,
+        reaction: fn(&mut Tile, &mut Tile),
+    ) {
+        let first_id = std::cmp::min(element1.id, element2.id);
+        let second_id = std::cmp::max(element1.id, element2.id);
+        let reagent_ids = (first_id, second_id);
+        let conflict = self.collision_reactions.insert(reagent_ids, reaction);
+        match conflict {
+            Some(_) => {panic!("Attempt to register a duplicate reaction for {:?}", reagent_ids)},
+            None => () // All good
+        }
+    }
+
+
+
+    fn register_collision_side_effect(
+        &mut self,
+        element1: &Element,
+        element2: &Element,
+        side_effect: fn(&mut World, usize, usize),
+    ) {
+        let first_id = std::cmp::min(element1.id, element2.id);
+        let second_id = std::cmp::max(element1.id, element2.id);
+        let reagent_ids = (first_id, second_id);
+        let conflict = self.collision_side_effects.insert(reagent_ids, side_effect);
+        match conflict {
+            Some(_) => {panic!("Attempt to register a duplicate reaction for {:?}", reagent_ids)},
+            None => () // All good
+        }
+    }
+
+    fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
+        // If we can't unwrap here, a collision occured in empty space
+        let source_element_id = self[source].as_mut().unwrap().element.id;
+        let destination_element_id = self[destination].as_mut().unwrap().element.id;
+        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+        if let Some(reaction) = self.collision_side_effects.get_mut(&(first_element_id, last_element_id)) {
+            if first_element_id == source_element_id {
+                reaction(self, destination, source);
+            }
+            else {
+                reaction(self, source, destination);
+            }
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    
+    fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
+        let source_element_id = self[source].as_ref().unwrap().element.id;
+        let destination_element_id = self[destination].as_ref().unwrap().element.id;
+        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+        if let Some(reaction) = self.collision_reactions.get_mut(&(first_element_id, last_element_id)) {
+            let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
+            let (source_tile, destination_tile) = (
+                source_option.as_mut().unwrap(),
+                destination_option.as_mut().unwrap()
+            );
+            if first_element_id == source_tile.element.id {
+                reaction(destination_tile, source_tile);
+            }
+            else {
+                reaction(source_tile, destination_tile);
+            }
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Option<Tile>, &mut Option<Tile>) {
+        self.grid.mutate_pair(first, second)
+    }
+
+
+}
+
+impl Index<usize> for World {
+    type Output=Option<Tile>;
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.grid[i]
+    }
+}
+
+impl IndexMut<usize> for World {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        &mut self.grid[i]
+    }
+}
 
 fn unpause(world: &mut World, initial_position: usize) {
     let mut current_position = initial_position;
@@ -411,6 +618,18 @@ fn unpause(world: &mut World, initial_position: usize) {
     }
 }
 
+fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
+        let x = index as i32 % WORLD_WIDTH;
+        let y = index as i32 / WORLD_WIDTH;
+        iproduct!(-1i32..1, -1i32..1) // consider all adjacent tuples
+            .filter(|&tuple| tuple != (0,0)) // exclude same tile
+            .map(|(dx,dy)| (x+dx, y+dy))
+            .filter(|&(x,y)|  // exclude tiles outside world bounds
+                in_bounds(x,y)
+            ).map(|(x,y)| (x+y*WORLD_WIDTH) as usize) // calculate index
+            .for_each(|minimum| f(minimum)); // apply input function
+}
+
 #[allow(dead_code)]
 fn populate_world_bullet(world: &mut World) {
     world[point(10,10)] = Some(Tile {
@@ -424,17 +643,36 @@ fn populate_world_bullet(world: &mut World) {
 #[allow(dead_code)]
 fn populate_world_pileup(world: &mut World) {
     let mut rng = thread_rng();
-    for x in 5..10 {
-        for y in 5..10 {
+    // for x in 5..10 {
+    //     for y in 5..10 {
+    //         world[point(x,y)] = Some(
+    //             Tile {
+    //                 element: &FIRE,
+    //                 position : Vector {
+    //                     x : rng.gen_range(-50,50),
+    //                     y : rng.gen_range(-50,50),
+    //                 },
+    //                 velocity : Vector {
+    //                     x : 10,
+    //                     y : 10,
+    //                 },
+    //                 paused : false,
+    //             }
+    //         )
+    //     }
+    // }
+
+    for x in 1..79 {
+        for y in 60..79 {
             world[point(x,y)] = Some(
                 Tile {
-                    element: &SAND,
+                    element: &WATER,
                     position : Vector {
                         x : rng.gen_range(-50,50),
                         y : rng.gen_range(-50,50),
                     },
                     velocity : Vector {
-                        x : 10,
+                        x : 0,
                         y : 0,
                     },
                     paused : false,
@@ -443,17 +681,17 @@ fn populate_world_pileup(world: &mut World) {
         }
     }
 
-    for x in 30..35 {
-        for y in 5..10 {
+    for x in 30..50 {
+        for y in 30..60 {
             world[point(x,y)] = Some(
                 Tile {
-                    element: &SAND,
+                    element: &WATER,
                     position : Vector {
                         x : rng.gen_range(-50,50),
                         y : rng.gen_range(-50,50),
                     },
                     velocity : Vector {
-                        x : -10,
+                        x : 0,
                         y : 0,
                     },
                     paused : false,
@@ -474,6 +712,7 @@ fn create_walls(world: &mut World) {
     }
 }
 
+#[allow(dead_code)]
 fn populate_world(world: &mut World) {
     let mut rng = thread_rng();
     for i in 0..45 {
@@ -485,7 +724,7 @@ fn populate_world(world: &mut World) {
         } else if i < 30 {
             &SAND
         } else {
-            &GAS
+            &FIRE
         };
         world[point(15+x_offset, 5+y_offset)] = Some(Tile{
             element: element,
@@ -547,6 +786,9 @@ impl App {
             if self.turn % GRAVITY_PERIOD == 0 {
                 apply_gravity(&mut self.world);
             }
+            if self.turn % DECAY_REACTION_PERIOD == 0 {
+                apply_decay_reactions(&mut self.world);
+            }
             apply_velocity(&mut self.world);
             self.turn += 1;
             i += 1;
@@ -572,11 +814,26 @@ pub fn game_loop() {
 
 
     const EMPTY_TILE : Option<Tile> = None;
-    let mut world = [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize];
+    let mut world = World { 
+        grid: [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
+        collision_side_effects: std::collections::HashMap::new(),
+        collision_reactions: std::collections::HashMap::new(),
+    };
     //let mut i = 0;
     create_walls(&mut world);
-    populate_world(&mut world);
+    populate_world_pileup(&mut world);
+    // world.register_collision_reaction(&SAND, &GAS, |world, sand_location, _gas_location| {
+    //     world[sand_location].as_mut().unwrap().element = &GAS;
+    // });
+    world.register_collision_reaction(&FIRE, &SAND, |_fire_tile, sand_tile| {
+        sand_tile.element = &FIRE;
+    });
 
+    world.register_collision_reaction(&FIRE, &WATER, |fire_tile, _water_tile| {
+        fire_tile.element = &ASH;
+    });
+    world.register_collision_side_effect(&FIRE, &SAND, burn);
+    //world.register_collision_reaction(&FIRE, &GAS, &burn);
 
     let mut app = App {
         gl: GlGraphics::new(opengl),
