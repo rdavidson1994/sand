@@ -8,17 +8,19 @@ use std::convert::TryFrom;
 use std::any::type_name;
 use std::fmt::Display;
 use std::ops::{Index, IndexMut};
+use std::collections::VecDeque;
 use num::Bounded;
-const WORLD_WIDTH : i32 = 80;
-const WORLD_HEIGHT: i32 = 80;
+const WORLD_WIDTH : i32 = 120;
+const WORLD_HEIGHT: i32 = 120;
 const WORLD_SIZE : i32 = WORLD_HEIGHT*WORLD_WIDTH;
-const TILE_PIXELS : i32 = 5;
+const TILE_PIXELS : i32 = 3;
 const WINDOW_PIXEL_WIDTH : i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT : i32 = WORLD_HEIGHT * TILE_PIXELS;
 const LOGICAL_FRAMES_PER_DISPLAY_FRAME : i32 = 10;
 const GRAVITY_PERIOD : i32 = 20;
 const DECAY_REACTION_PERIOD : i32 = 100;
 const BASE_RESTITUTION : f64 = 0.5;
+const BASE_COLLIDE_RESTITUTION : f64 = 0.8;
 const PAUSE_VELOCITY : i8 = 3;
 const SECONDS_PER_LOGICAL_FRAME : f64 = 1.0 / 1400.0; // Based on square = 1inch
 //graphics imports
@@ -26,11 +28,26 @@ extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
+extern crate bitflags;
 
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
-use piston::event_loop::{EventSettings, Events};
-use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::event_loop::{
+    EventSettings,
+    Events
+};
+use piston::input::{
+    RenderArgs,
+    RenderEvent,
+    UpdateArgs,
+    UpdateEvent, 
+    Button,
+    ButtonEvent,
+    ButtonState,
+    MouseButton,
+    MouseCursorEvent,
+    Key,
+};
 use piston::window::WindowSettings;
 
 trait PairwiseMutate {
@@ -63,12 +80,21 @@ bitflags! {
         const NONE = 0b00000000;
         const GRAVITY = 0b00000001;
         const FIXED = 0b00000010;
+        const PAUSE_EXEMPT = 0b00000100;
+        const WATER_FLAGS = Self::GRAVITY.bits | Self::PAUSE_EXEMPT.bits;
     }
 }
 
+type EFlag = u8;
+
+const NO_FLAGS : EFlag = 0;
+const GRAVITY : EFlag = 1 << 0;
+const FIXED : EFlag = 1 << 1;
+const PAUSE_EXEMPT : EFlag = 1 << 2;
+
 #[derive(Default)]
 struct Element {
-    flags : ElementFlags,
+    flags : EFlag,
     // symbol_l: char,
     // symbol_r: char,
     color : [f32; 4],
@@ -77,6 +103,11 @@ struct Element {
     decay_reaction: Option<fn(&mut World, usize)>
 }
 
+impl Element {
+    fn has_flag(&self, flag: EFlag) -> bool {
+        flag & self.flags != 0
+    }
+}
 
 #[derive(Clone)]
 struct Vector {
@@ -89,8 +120,8 @@ fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
     let v2 = v2 as f64;
     let m1 = m1 as f64;
     let m2 = m2 as f64;
-    let new_v1 = ((m1 - m2)/(m1 + m2))*v1 + 2.0*m2/(m1+m2)*v2;
-    let new_v2 = ((m2 - m1)/(m2 + m1))*v2 + 2.0*m1/(m2+m1)*v1;
+    let new_v1 = (((m1 - m2)/(m1 + m2))*v1 + 2.0*m2/(m1+m2)*v2) * BASE_COLLIDE_RESTITUTION;
+    let new_v2 = (((m2 - m1)/(m2 + m1))*v2 + 2.0*m1/(m2+m1)*v1) * BASE_COLLIDE_RESTITUTION;
     (
         clamp_convert::<i32, i8>(new_v1.trunc() as i32),
         clamp_convert::<i32, i8>(new_v2.trunc() as i32),
@@ -106,6 +137,10 @@ struct Tile {
 }
 
 impl Tile {
+    fn has_flag(&self, flag: EFlag) -> bool {
+        self.element.has_flag(flag)
+    }
+
     fn elastic_collide_y(&mut self, particle2: &mut Tile) {
         let (v1y, v2y) = elastic_collide(
             self.velocity.y,
@@ -119,8 +154,8 @@ impl Tile {
 
     fn elastic_collide_x(&mut self, particle2: &mut Tile) {
         let (v1x, v2x) = elastic_collide(
-            self.velocity.y,
-            particle2.velocity.y,
+            self.velocity.x,
+            particle2.velocity.x,
             self.element.mass,
             particle2.element.mass,
         );
@@ -140,7 +175,7 @@ impl Tile {
 
 fn stationary_tile(element: &'static Element) -> Tile {
     Tile{
-        element: element,
+        element,
         paused: false,
         position: Vector {
             x: 0,
@@ -221,8 +256,10 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
             world.swap(source, destination);
         }
         (Some(ref mut s), Some(ref mut d)) => {
+            s.velocity.x;
+            d.velocity.x;
             if adjacent_x(source, destination) {
-                if d.element.flags.contains(ElementFlags::FIXED) {
+                if d.has_flag(FIXED) {
                     s.reflect_velocity_x();
                 }
                 else {
@@ -231,7 +268,7 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
                 }
             }
             else /*if adjacent_y(source, destination)*/ {
-                if d.element.flags.contains(ElementFlags::FIXED) {
+                if d.has_flag(FIXED) {
                     s.reflect_velocity_y();
                 }
                 else {
@@ -250,7 +287,7 @@ fn has_stable_floor(position: usize, world: &World) -> bool {
         Some(floor_position) => {
             match &world[floor_position] {
                 Some(tile) => {
-                    tile.element.flags.contains(ElementFlags::FIXED)
+                    tile.has_flag(FIXED)
                     || tile.paused
                 },
                 None => false
@@ -265,7 +302,7 @@ fn pause_particles(world: &mut World) {
         match &world[i] {
             Some(tile) => {
                 if tile.paused 
-                    || !tile.element.flags.contains(ElementFlags::GRAVITY)
+                    || tile.has_flag(PAUSE_EXEMPT)
                     || tile.velocity.x.abs() > PAUSE_VELOCITY
                     || tile.velocity.y.abs() > PAUSE_VELOCITY
                     || !has_stable_floor(i, world) {
@@ -284,9 +321,11 @@ fn pause_particles(world: &mut World) {
     }
 }
 
-fn apply_velocity(world: &mut World) -> bool {
+fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
     let mut needs_update = false;
-    let mut swaps : Vec<(usize, usize)> = vec![];
+    // This makes more sense at the end, but borrowck didn't like it
+    // maybe check it later?
+    motion_queue.clear();
     for i in 0..WORLD_SIZE as usize {
         if let Some(ref mut tile) = &mut world[i] {
             if !tile.paused {
@@ -313,17 +352,25 @@ fn apply_velocity(world: &mut World) -> bool {
                     );
                     if in_bounds(new_grid_x, new_grid_y) 
                     {
-                        swaps.push((i, point(new_grid_x, new_grid_y)));
+                        let swap_pair = (i, point(new_grid_x, new_grid_y));
+                        // this logic is to allow "trains" of adjacent particles
+                        // to travel smoothly and not knock each other
+                        if delta_y < 0 || (delta_y == 0 && delta_x < 0) {
+                            motion_queue.push_back(swap_pair);
+                        }
+                        else {
+                            motion_queue.push_front(swap_pair);
+                        }
                     }
                 }
             }
         }
     }
 
-    for (i,j) in swaps {
-        assert!(in_bounds(coords(i).0, coords(i).1));
-        assert!(in_bounds(coords(j).0, coords(j).1));
-        move_particle(i, j, world);
+    for (i,j) in motion_queue {
+        assert!(in_bounds(coords(*i).0, coords(*i).1));
+        assert!(in_bounds(coords(*j).0, coords(*j).1));
+        move_particle(*i, *j, world);
     };
 
     needs_update
@@ -361,7 +408,7 @@ fn apply_gravity(world: &mut World) {
     for i in 0..WORLD_SIZE as usize {
         match &mut world[i] {
             Some(ref mut tile) => {
-                if tile.element.flags.contains(ElementFlags::GRAVITY) && !tile.paused {
+                if tile.has_flag(GRAVITY) && !tile.paused {
                     tile.velocity.y = tile.velocity.y.saturating_add(1);
                 }
             }
@@ -389,7 +436,7 @@ fn point(x: i32 , y: i32) -> usize {
 }
 
 static WALL : Element = Element {
-    flags: ElementFlags::FIXED,
+    flags: FIXED,
     color: [1.0, 1.0, 1.0, 1.0],
     mass: 127,
     id: 0,
@@ -397,7 +444,7 @@ static WALL : Element = Element {
 };
 
 static ROCK : Element = Element {
-    flags: ElementFlags::GRAVITY,
+    flags: GRAVITY,
     color: [0.5, 0.5, 0.5, 1.0],
     mass: 50,
     id: 1,
@@ -405,7 +452,7 @@ static ROCK : Element = Element {
 };
 
 static SAND : Element = Element {
-    flags: ElementFlags::GRAVITY,
+    flags: GRAVITY,
     color: [1.0, 1.0, 0.5, 1.0],
     mass: 10,
     id: 2,
@@ -413,7 +460,7 @@ static SAND : Element = Element {
 };
 
 static GAS : Element = Element {
-    flags: ElementFlags::NONE,
+    flags: NO_FLAGS,
     color: [1.0, 0.5, 1.0, 1.0],
     mass: 3,
     id: 3,
@@ -421,28 +468,49 @@ static GAS : Element = Element {
 };
 
 static FIRE : Element = Element {
-    flags: ElementFlags::NONE,
+    flags: NO_FLAGS,
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
     id: 4,
     decay_reaction: Some(|w, i| {
         let mut rng = thread_rng();
+        for_neighbors(i, |j| {
+            let did_burn = if let Some(tile) = &mut w[j] {
+                if tile.element.id == SAND.id {
+                    tile.element = &FIRE;
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            if did_burn {
+                unpause(w, j);
+            }
+        });
         if rng.gen_range(0,20) == 0 {
-            w[i].as_mut().unwrap().element = &ASH;
+            if rng.gen_range(0,3) == 0 {
+                w[i].as_mut().unwrap().element = &ASH;
+            }
+            else {
+                w[i] = None;
+            }
         }
     }),
 };
 
 static ASH : Element = Element {
-    flags: ElementFlags::GRAVITY,
+    flags: GRAVITY,
     color: [0.3, 0.3, 0.3, 1.0],
     mass: 3,
     id: 5,
     decay_reaction: None,
 };
 
+
 static WATER : Element = Element {
-    flags: ElementFlags::GRAVITY,
+    flags: GRAVITY | PAUSE_EXEMPT,
     color: [0.0, 0.0, 1.0, 1.0],
     mass: 8,
     id: 6,
@@ -450,7 +518,23 @@ static WATER : Element = Element {
         // Water "jiggles" slightly
         let mut rng = thread_rng();
         let water_tile = w[p].as_mut().unwrap();
-        water_tile.velocity.x += rng.gen_range(-3, 3);
+        water_tile.velocity.x += rng.gen_range(-3, 4);
+        // if let Some(below_pos) = below(p) {
+        //     if w[below_pos].is_some() {
+        //         let (x,y) = coords(below_pos);
+        //         let (first_choice, second_choice) = if rng.gen::<bool>() {
+        //             (x+1, x-1)
+        //         } else {
+        //             (x+1, x-1)
+        //         };
+        //         if in_bounds(first_choice, y) && w[point(first_choice, y)].is_none() {
+        //             w.swap(point(first_choice, y), p);
+        //         }
+        //         else if in_bounds(second_choice, y) && w[point(second_choice, y)].is_none() {
+        //             w.swap(point(second_choice, y), p)
+        //         }
+        //     }
+        // }
     }),
 };
 
@@ -640,36 +724,34 @@ fn populate_world_bullet(world: &mut World) {
     })
 }
 
-#[allow(dead_code)]
-fn populate_world_pileup(world: &mut World) {
-    let mut rng = thread_rng();
-    // for x in 5..10 {
-    //     for y in 5..10 {
-    //         world[point(x,y)] = Some(
-    //             Tile {
-    //                 element: &FIRE,
-    //                 position : Vector {
-    //                     x : rng.gen_range(-50,50),
-    //                     y : rng.gen_range(-50,50),
-    //                 },
-    //                 velocity : Vector {
-    //                     x : 10,
-    //                     y : 10,
-    //                 },
-    //                 paused : false,
-    //             }
-    //         )
-    //     }
-    // }
-
-    for x in 1..79 {
-        for y in 60..79 {
+fn populate_world_water_bubble(world: &mut World) {
+    for x in 1..WORLD_WIDTH-1 {
+        for y in WORLD_HEIGHT-20..WORLD_HEIGHT-1 {
             world[point(x,y)] = Some(
                 Tile {
-                    element: &WATER,
+                    element: &SAND,
                     position : Vector {
-                        x : rng.gen_range(-50,50),
-                        y : rng.gen_range(-50,50),
+                        x : 0,
+                        y : 0,
+                    },
+                    velocity : Vector {
+                        x : 0,
+                        y : 0,
+                    },
+                    paused : true,
+                }
+            )
+        }
+    }
+
+    for x in 20..WORLD_WIDTH-20 {
+        for y in WORLD_HEIGHT-65..WORLD_HEIGHT-45 {
+            world[point(x,y)] = Some(
+                Tile {
+                    element: &SAND,
+                    position : Vector {
+                        x : 0,
+                        y : 0,
                     },
                     velocity : Vector {
                         x : 0,
@@ -680,19 +762,42 @@ fn populate_world_pileup(world: &mut World) {
             )
         }
     }
+}
 
-    for x in 30..50 {
-        for y in 30..60 {
+#[allow(dead_code)]
+fn populate_world_pileup(world: &mut World) {
+    //let mut rng = thread_rng();
+    for x in 5..10 {
+        for y in 5..10 {
             world[point(x,y)] = Some(
                 Tile {
-                    element: &WATER,
+                    element: &GAS,
                     position : Vector {
-                        x : rng.gen_range(-50,50),
-                        y : rng.gen_range(-50,50),
-                    },
-                    velocity : Vector {
                         x : 0,
                         y : 0,
+                    },
+                    velocity : Vector {
+                        x : 10,
+                        y : 0,
+                    },
+                    paused : false,
+                }
+            )
+        }
+    }
+
+    for x in 55..60 {
+        for y in 5..10 {
+            world[point(x,y)] = Some(
+                Tile {
+                    element: &GAS,
+                    position : Vector {
+                        x : 0,//rng.gen_range(-50,50),
+                        y : 0,//rng.gen_range(-50,50),
+                    },
+                    velocity : Vector {
+                        x : -10,
+                        y : 0,//10,
                     },
                     paused : false,
                 }
@@ -747,6 +852,7 @@ struct App {
     frame_balance: i32,
     turn: i32,
     world: World,
+    motion_queue: VecDeque<(usize, usize)>,
     needs_render: bool,
 }
 
@@ -777,7 +883,6 @@ impl App {
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-
         self.time_balance += args.dt;
         let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
         let mut i = 0;
@@ -789,7 +894,7 @@ impl App {
             if self.turn % DECAY_REACTION_PERIOD == 0 {
                 apply_decay_reactions(&mut self.world);
             }
-            apply_velocity(&mut self.world);
+            apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;
             i += 1;
         }
@@ -802,12 +907,38 @@ impl App {
     }
 }
 
-pub fn game_loop() {
-    let opengl = OpenGL::V3_2;
+trait Pen {
+    fn draw(&mut self, world: &mut World, x: f64, y: f64);
+}
 
+struct ElementPen {
+    element: &'static Element,
+}
+
+impl Pen for ElementPen {
+    fn draw(&mut self, world: &mut World, x: f64, y: f64) {
+        let x = x.trunc() as i32 / TILE_PIXELS;
+        let y = y.trunc() as i32 / TILE_PIXELS;
+        if in_bounds(x, y) && world[point(x, y)].is_none() {
+            world[point(x, y)] = Some(Tile{
+                element : self.element,
+                velocity : Vector {
+                    x : thread_rng().gen_range(-20,21),
+                    y : thread_rng().gen_range(-20,21),
+                },
+                position : Vector { x : 0, y : 0 },
+                paused : false,
+            })
+        }
+    }
+}
+
+pub fn game_loop() {
+    let open_gl = OpenGL::V3_2;
+    let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
     // Create an Glutin window.
-    let mut window: Window = WindowSettings::new("Falling sand", [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32])
-        .graphics_api(opengl)
+    let mut window: Window = WindowSettings::new("Falling sand", size)
+        .graphics_api(open_gl)
         .exit_on_esc(true)
         .build()
         .unwrap();
@@ -821,10 +952,7 @@ pub fn game_loop() {
     };
     //let mut i = 0;
     create_walls(&mut world);
-    populate_world_pileup(&mut world);
-    // world.register_collision_reaction(&SAND, &GAS, |world, sand_location, _gas_location| {
-    //     world[sand_location].as_mut().unwrap().element = &GAS;
-    // });
+    populate_world_water_bubble(&mut world);
     world.register_collision_reaction(&FIRE, &SAND, |_fire_tile, sand_tile| {
         sand_tile.element = &FIRE;
     });
@@ -833,18 +961,20 @@ pub fn game_loop() {
         fire_tile.element = &ASH;
     });
     world.register_collision_side_effect(&FIRE, &SAND, burn);
-    //world.register_collision_reaction(&FIRE, &GAS, &burn);
 
     let mut app = App {
-        gl: GlGraphics::new(opengl),
+        gl: GlGraphics::new(open_gl),
         time_balance: 0.0,
         frame_balance: 0,
         turn: 0,
         world: world,
+        motion_queue: VecDeque::new(),
         needs_render: true,
     };
-
+    let mut selected_pen : Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
     let mut events = Events::new(EventSettings::new());
+    let mut drawing = false;
+    let mut last_mouse_pos = (-1.0, -1.0);
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
@@ -852,6 +982,51 @@ pub fn game_loop() {
 
         if let Some(args) = e.update_args() {
             app.update(&args);
+        }
+
+        if let Some(args) = e.button_args() {
+            match args.button {
+                Button::Mouse(MouseButton::Left) => {
+                    match args.state {
+                        ButtonState::Press => {
+                            drawing = true;
+                            selected_pen.draw(
+                                &mut app.world,
+                                last_mouse_pos.0,
+                                last_mouse_pos.1
+                            );
+                            //draw(&mut app.world, selected_element, last_mouse_pos.0, last_mouse_pos.1);
+                        },
+                        ButtonState::Release => {
+                            drawing = false;
+                        }
+                    }
+                },
+                Button::Keyboard(key) => {
+                    let element = match key {
+                        Key::D1 => Some(&SAND),
+                        Key::D2 => Some(&FIRE),
+                        Key::D3 => Some(&GAS),
+                        Key::D4 => Some(&ROCK),
+                        Key::D5 => Some(&WATER),
+                        // Key::D6 => &WALL,
+                        _ => None // Key not recognized, do nothing
+                    };
+                    if let Some(element) = element {
+                        selected_pen = Box::new(ElementPen { element });
+                    }
+                },
+                _ => { }
+            }
+        }
+
+        if let Some(args) = e.mouse_cursor_args() {
+            if drawing {
+                selected_pen.draw(&mut app.world, args[0], args[1]);
+            }
+            else {
+                last_mouse_pos = (args[0], args[1]);
+            }
         }
     }
 }
