@@ -1,5 +1,6 @@
 mod tile;
 mod fire;
+mod world;
 
 use crate::fire::{FIRE, FireElementSetup};
 use crate::tile::{Tile, Vector};
@@ -172,7 +173,7 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
                 }
                 else {
                     s.elastic_collide_x(d);
-                    unpause(world, destination);
+                    world.unpause(destination);
                 }
             }
             else /*if adjacent_y(source, destination)*/ {
@@ -181,7 +182,7 @@ fn move_particle(source: usize, destination: usize, world: &mut World) {
                 }
                 else {
                     s.elastic_collide_y(d);
-                    unpause(world, destination);
+                    world.unpause(destination);
                 }
             }
             world.trigger_collision_side_effects(source, destination);
@@ -414,8 +415,6 @@ impl World {
         }
     }
 
-
-
     fn register_collision_side_effect(
         &mut self,
         element1: &Element,
@@ -451,8 +450,7 @@ impl World {
             false
         }
     }
-
-    
+   
     fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
         let source_element_id = self[source].as_ref().unwrap().element.id;
         let destination_element_id = self[destination].as_ref().unwrap().element.id;
@@ -481,7 +479,23 @@ impl World {
         self.grid.mutate_pair(first, second)
     }
 
-
+    fn unpause(&mut self, initial_position: usize) {
+        let mut current_position = initial_position;
+        loop {
+            if let Some(ref mut tile) = self[current_position] {
+                if tile.paused {
+                    tile.paused = false;
+                    if let Some(new_position) = above(current_position) {
+                        current_position = new_position;
+                        // glorified goto lol
+                        continue;
+                    }
+                }
+            }
+            // if any condition fails, exit the loop
+            break;
+        }
+    }
 }
 
 impl Index<usize> for World {
@@ -494,24 +508,6 @@ impl Index<usize> for World {
 impl IndexMut<usize> for World {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
         &mut self.grid[i]
-    }
-}
-
-fn unpause(world: &mut World, initial_position: usize) {
-    let mut current_position = initial_position;
-    loop {
-        if let Some(ref mut tile) = world[current_position] {
-            if tile.paused {
-                tile.paused = false;
-                if let Some(new_position) = above(current_position) {
-                    current_position = new_position;
-                    // glorified goto lol
-                    continue;
-                }
-            }
-        }
-        // if any condition fails, exit the loop
-        break;
     }
 }
 

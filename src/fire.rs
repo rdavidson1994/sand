@@ -4,7 +4,6 @@ use crate::{
     SAND,
     WATER,
     for_neighbors,
-    unpause,
     Element,
     World,
     Tile,
@@ -40,7 +39,7 @@ pub static FIRE : Element = Element {
                 false
             };
             if did_burn {
-                unpause(w, j);
+                w.unpause(j);
             }
         });
         if rng.gen_range(0,20) == 0 {
