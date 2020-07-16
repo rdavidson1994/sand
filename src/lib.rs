@@ -1,9 +1,10 @@
+mod tile;
+mod fire;
+
+use crate::fire::{FIRE, FireElementSetup};
+use crate::tile::{Tile, Vector};
 use itertools::iproduct;
-use bitflags::bitflags;
-// use crossterm::{QueueableCommand, cursor};
-// use std::io::{Write, stdout, Stdout};
 use rand::{Rng, thread_rng};
-//use std::time::Instant;
 use std::convert::TryFrom;
 use std::any::type_name;
 use std::fmt::Display;
@@ -19,8 +20,6 @@ const WINDOW_PIXEL_HEIGHT : i32 = WORLD_HEIGHT * TILE_PIXELS;
 const LOGICAL_FRAMES_PER_DISPLAY_FRAME : i32 = 10;
 const GRAVITY_PERIOD : i32 = 20;
 const DECAY_REACTION_PERIOD : i32 = 100;
-const BASE_RESTITUTION : f64 = 0.5;
-const BASE_COLLIDE_RESTITUTION : f64 = 0.8;
 const PAUSE_VELOCITY : i8 = 3;
 const SECONDS_PER_LOGICAL_FRAME : f64 = 1.0 / 1400.0; // Based on square = 1inch
 //graphics imports
@@ -28,7 +27,6 @@ extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
-extern crate bitflags;
 
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -49,6 +47,10 @@ use piston::input::{
     Key,
 };
 use piston::window::WindowSettings;
+
+pub trait ElementSetup {
+    fn register_reactions(&mut self, world: &mut World);
+}
 
 trait PairwiseMutate {
     type T;
@@ -74,26 +76,15 @@ impl<U> PairwiseMutate for [U] {
     }
 }
 
-bitflags! {
-    #[derive(Default)]
-    struct ElementFlags : u8 {
-        const NONE = 0b00000000;
-        const GRAVITY = 0b00000001;
-        const FIXED = 0b00000010;
-        const PAUSE_EXEMPT = 0b00000100;
-        const WATER_FLAGS = Self::GRAVITY.bits | Self::PAUSE_EXEMPT.bits;
-    }
-}
-
+// Can't use bitflags crate at the moment, since we need FLAG1 | FLAG2 to be const
 type EFlag = u8;
-
 const NO_FLAGS : EFlag = 0;
 const GRAVITY : EFlag = 1 << 0;
 const FIXED : EFlag = 1 << 1;
 const PAUSE_EXEMPT : EFlag = 1 << 2;
 
 #[derive(Default)]
-struct Element {
+pub struct Element {
     flags : EFlag,
     // symbol_l: char,
     // symbol_r: char,
@@ -106,85 +97,6 @@ struct Element {
 impl Element {
     fn has_flag(&self, flag: EFlag) -> bool {
         flag & self.flags != 0
-    }
-}
-
-#[derive(Clone)]
-struct Vector {
-    x : i8,
-    y : i8,
-}
-
-fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
-    let v1 = v1 as f64;
-    let v2 = v2 as f64;
-    let m1 = m1 as f64;
-    let m2 = m2 as f64;
-    let new_v1 = (((m1 - m2)/(m1 + m2))*v1 + 2.0*m2/(m1+m2)*v2) * BASE_COLLIDE_RESTITUTION;
-    let new_v2 = (((m2 - m1)/(m2 + m1))*v2 + 2.0*m1/(m2+m1)*v1) * BASE_COLLIDE_RESTITUTION;
-    (
-        clamp_convert::<i32, i8>(new_v1.trunc() as i32),
-        clamp_convert::<i32, i8>(new_v2.trunc() as i32),
-    )
-}
-
-#[derive(Clone)]
-struct Tile {
-    paused: bool,
-    velocity: Vector,
-    position: Vector,
-    element: &'static Element,
-}
-
-impl Tile {
-    fn has_flag(&self, flag: EFlag) -> bool {
-        self.element.has_flag(flag)
-    }
-
-    fn elastic_collide_y(&mut self, particle2: &mut Tile) {
-        let (v1y, v2y) = elastic_collide(
-            self.velocity.y,
-            particle2.velocity.y,
-            self.element.mass,
-            particle2.element.mass,
-        );
-        self.velocity.y = v1y;
-        particle2.velocity.y = v2y;
-    }
-
-    fn elastic_collide_x(&mut self, particle2: &mut Tile) {
-        let (v1x, v2x) = elastic_collide(
-            self.velocity.x,
-            particle2.velocity.x,
-            self.element.mass,
-            particle2.element.mass,
-        );
-        self.velocity.x = v1x;
-        particle2.velocity.x = v2x;
-    }
-
-    fn reflect_velocity_x(&mut self) {
-        self.velocity.x = (-(self.velocity.x as f64) * BASE_RESTITUTION).trunc() as i8;
-    }
-
-    fn reflect_velocity_y(&mut self) {
-        self.velocity.y = (-(self.velocity.y as f64) * BASE_RESTITUTION).trunc() as i8;
-    }
-    
-}
-
-fn stationary_tile(element: &'static Element) -> Tile {
-    Tile{
-        element,
-        paused: false,
-        position: Vector {
-            x: 0,
-            y: 0,
-        },
-        velocity: Vector {
-            x: 0,
-            y: 0,
-        },
     }
 }
 
@@ -376,34 +288,6 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     needs_update
 }
 
-fn clamp_convert<T,V>(t: T) -> V
-    where
-        T : PartialOrd + Copy + Display,
-        V : TryFrom<T> + Bounded + Into<T> + Display,
-{
-    if let Ok(v) = V::try_from(t) {
-        v
-    }
-    else if t > V::max_value().into() {
-        V::max_value()
-    }
-    else if t < V::min_value().into() {
-        V::min_value()
-    }
-    else {
-        panic!(
-            "Conversion of {input} from {T} to {V} failed,\
-             even though {input} is between {V}::max_value()=={v_max}\
-             and {V}::min_value()=={v_min}",
-            input = t,
-            T = type_name::<T>(),
-            V = type_name::<V>(),
-            v_max = V::max_value(),
-            v_min = V::min_value(),
-        )
-    }
-}
-
 fn apply_gravity(world: &mut World) {
     for i in 0..WORLD_SIZE as usize {
         match &mut world[i] {
@@ -467,48 +351,6 @@ static GAS : Element = Element {
     decay_reaction: None,
 };
 
-static FIRE : Element = Element {
-    flags: NO_FLAGS,
-    color: [1.0, 0.0, 0.0, 1.0],
-    mass: 3,
-    id: 4,
-    decay_reaction: Some(|w, i| {
-        let mut rng = thread_rng();
-        for_neighbors(i, |j| {
-            let did_burn = if let Some(tile) = &mut w[j] {
-                if tile.element.id == SAND.id {
-                    tile.element = &FIRE;
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-            if did_burn {
-                unpause(w, j);
-            }
-        });
-        if rng.gen_range(0,20) == 0 {
-            if rng.gen_range(0,3) == 0 {
-                w[i].as_mut().unwrap().element = &ASH;
-            }
-            else {
-                w[i] = None;
-            }
-        }
-    }),
-};
-
-static ASH : Element = Element {
-    flags: GRAVITY,
-    color: [0.3, 0.3, 0.3, 1.0],
-    mass: 3,
-    id: 5,
-    decay_reaction: None,
-};
-
-
 static WATER : Element = Element {
     flags: GRAVITY | PAUSE_EXEMPT,
     color: [0.0, 0.0, 1.0, 1.0],
@@ -538,37 +380,12 @@ static WATER : Element = Element {
     }),
 };
 
-fn burn(world: &mut World, _fire_loc: usize, other_loc: usize) {
-    let mut rng = thread_rng();
-    for_neighbors(other_loc, |position| {
-        match &world[position] {
-            Some(_) => {
-                 world[position].as_mut().unwrap().paused =false;
-            },
-            None => {
-                world[position] = Some(Tile {
-                    element: &FIRE,
-                    paused: false,
-                    velocity: Vector {
-                        x: rng.gen_range(-10,10),
-                        y: rng.gen_range(-10,10),
-                    },
-                    position: Vector {
-                        x: rng.gen_range(-128,127),
-                        y: rng.gen_range(-128,127),
-                    },
-                })
-            }
-        }
-    });    
-}
-
 //type World = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];//Vec<Option<Tile>>;c
 
 type CollisionSideEffect = fn(&mut World, usize, usize);
 type CollisionReaction = fn(&mut Tile, &mut Tile);
 
-struct World {
+pub struct World {
     grid: [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
     collision_side_effects: std::collections::HashMap<
         (u32, u32),
@@ -808,12 +625,12 @@ fn populate_world_pileup(world: &mut World) {
 
 fn create_walls(world: &mut World) {
     for i in 0..WORLD_WIDTH {
-        world[point(i, 0)] = Some(stationary_tile(&WALL));
-        world[point(i, WORLD_HEIGHT-1)] = Some(stationary_tile(&WALL));
+        world[point(i, 0)] = Some(Tile::stationary(&WALL));
+        world[point(i, WORLD_HEIGHT-1)] = Some(Tile::stationary(&WALL));
     }
     for i in 0..WORLD_HEIGHT {
-        world[point(0, i)] = Some(stationary_tile(&WALL));
-        world[point(WORLD_WIDTH-1, i)] = Some(stationary_tile(&WALL));
+        world[point(0, i)] = Some(Tile::stationary(&WALL));
+        world[point(WORLD_WIDTH-1, i)] = Some(Tile::stationary(&WALL));
     }
 }
 
@@ -832,7 +649,7 @@ fn populate_world(world: &mut World) {
             &FIRE
         };
         world[point(15+x_offset, 5+y_offset)] = Some(Tile{
-            element: element,
+            element,
             paused: false,
             position: Vector {
                 x: 0,
@@ -943,7 +760,6 @@ pub fn game_loop() {
         .build()
         .unwrap();
 
-
     const EMPTY_TILE : Option<Tile> = None;
     let mut world = World { 
         grid: [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
@@ -953,21 +769,14 @@ pub fn game_loop() {
     //let mut i = 0;
     create_walls(&mut world);
     populate_world_water_bubble(&mut world);
-    world.register_collision_reaction(&FIRE, &SAND, |_fire_tile, sand_tile| {
-        sand_tile.element = &FIRE;
-    });
-
-    world.register_collision_reaction(&FIRE, &WATER, |fire_tile, _water_tile| {
-        fire_tile.element = &ASH;
-    });
-    world.register_collision_side_effect(&FIRE, &SAND, burn);
+    FireElementSetup.register_reactions(&mut world);
 
     let mut app = App {
+        world,
         gl: GlGraphics::new(open_gl),
         time_balance: 0.0,
         frame_balance: 0,
         turn: 0,
-        world: world,
         motion_queue: VecDeque::new(),
         needs_render: true,
     };
