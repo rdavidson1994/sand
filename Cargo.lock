@@ -1213,7 +1213,6 @@ dependencies = [
 name = "sand"
 version = "0.1.0"
 dependencies = [
- "bitflags",
  "crossterm",
  "itertools",
  "num",
