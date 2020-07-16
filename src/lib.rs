@@ -153,44 +153,6 @@ fn adjacent_y(position1: usize, position2: usize) -> bool {
     is_above || is_below
 }
 
-fn move_particle(source: usize, destination: usize, world: &mut World) {
-    // TODO: Switch this all up to use world[i] instead borrowing
-    let (source_tile, dest_tile) = world.mutate_pair(source, destination);
-    match (source_tile, dest_tile) {
-    //match (world[source].as_mut(), world[destination].as_mut()) {
-        (None, None) | (None, Some(_)) => {
-            //Source particle has moved for some other reason - nothing to do
-        }
-        (Some(_), None) => {
-            world.swap(source, destination);
-        }
-        (Some(ref mut s), Some(ref mut d)) => {
-            s.velocity.x;
-            d.velocity.x;
-            if adjacent_x(source, destination) {
-                if d.has_flag(FIXED) {
-                    s.reflect_velocity_x();
-                }
-                else {
-                    s.elastic_collide_x(d);
-                    world.unpause(destination);
-                }
-            }
-            else /*if adjacent_y(source, destination)*/ {
-                if d.has_flag(FIXED) {
-                    s.reflect_velocity_y();
-                }
-                else {
-                    s.elastic_collide_y(d);
-                    world.unpause(destination);
-                }
-            }
-            world.trigger_collision_side_effects(source, destination);
-            world.trigger_collision_reactions(source, destination);
-        }
-    }
-}
-
 fn has_stable_floor(position: usize, world: &World) -> bool {
     match below(position) {
         Some(floor_position) => {
@@ -279,7 +241,7 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     for (i,j) in motion_queue {
         assert!(in_bounds(coords(*i).0, coords(*i).1));
         assert!(in_bounds(coords(*j).0, coords(*j).1));
-        move_particle(*i, *j, world);
+        world.move_particle(*i, *j);
     };
 
     needs_update
@@ -398,6 +360,44 @@ impl World {
     fn swap(&mut self, i: usize, j: usize) {
         self.grid.swap(i, j);
     }
+    
+    fn move_particle(&mut self, source: usize, destination: usize) {
+        let (source_tile, dest_tile) = self.mutate_pair(source, destination);
+        match (source_tile, dest_tile) {
+        //match (world[source].as_mut(), world[destination].as_mut()) {
+            (None, None) | (None, Some(_)) => {
+                //Source particle has moved for some other reason - nothing to do
+            }
+            (Some(_), None) => {
+                self.swap(source, destination);
+            }
+            (Some(ref mut s), Some(ref mut d)) => {
+                s.velocity.x;
+                d.velocity.x;
+                if adjacent_x(source, destination) {
+                    if d.has_flag(FIXED) {
+                        s.reflect_velocity_x();
+                    }
+                    else {
+                        s.elastic_collide_x(d);
+                        self.unpause(destination);
+                    }
+                }
+                else /*if adjacent_y(source, destination)*/ {
+                    if d.has_flag(FIXED) {
+                        s.reflect_velocity_y();
+                    }
+                    else {
+                        s.elastic_collide_y(d);
+                        self.unpause(destination);
+                    }
+                }
+                self.trigger_collision_side_effects(source, destination);
+                self.trigger_collision_reactions(source, destination);
+            }
+        }
+    }
+
 
     fn register_collision_reaction(
         &mut self,
