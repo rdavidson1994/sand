@@ -7,21 +7,6 @@ use std::any::type_name;
 const BASE_RESTITUTION : f64 = 0.5;
 const BASE_COLLIDE_RESTITUTION : f64 = 0.8;
 
-fn stationary_tile(element: &'static Element) -> Tile {
-    Tile{
-        element,
-        paused: false,
-        position: Vector {
-            x: 0,
-            y: 0,
-        },
-        velocity: Vector {
-            x: 0,
-            y: 0,
-        },
-    }
-}
-
 #[derive(Clone)]
 pub struct Vector {
     pub x : i8,
