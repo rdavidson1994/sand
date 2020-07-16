@@ -127,45 +127,6 @@ fn adjacent_y(position1: usize, position2: usize) -> bool {
     is_above || is_below
 }
 
-fn has_stable_floor(position: usize, world: &World) -> bool {
-    match below(position) {
-        Some(floor_position) => {
-            match &world[floor_position] {
-                Some(tile) => {
-                    tile.has_flag(FIXED)
-                    || tile.paused
-                },
-                None => false
-            }
-        },
-        None => true // The bottom of the world counts as stable
-    }
-}
-
-fn pause_particles(world: &mut World) {
-    for i in 0..WORLD_SIZE as usize {
-        match &world[i] {
-            Some(tile) => {
-                if tile.paused 
-                    || tile.has_flag(PAUSE_EXEMPT)
-                    || tile.velocity.x.abs() > PAUSE_VELOCITY
-                    || tile.velocity.y.abs() > PAUSE_VELOCITY
-                    || !has_stable_floor(i, world) {
-                    continue;
-                }
-            }
-            None => {
-                continue;
-            }
-        }
-        // Since we didn't continue to the next iteration, world[i] is not None
-        let tile = world[i].as_mut().unwrap();
-        tile.paused = true;
-        tile.velocity.x = 0;
-        tile.velocity.y = 0;
-    }
-}
-
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
     let mut needs_update = false;
     // This makes more sense at the end, but borrowck didn't like it
@@ -195,7 +156,7 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
                         old_grid_x + delta_x as i32,
                         old_grid_y + delta_y as i32
                     );
-                    if in_bounds(new_grid_x, new_grid_y) 
+                    if in_bounds(new_grid_x, new_grid_y)
                     {
                         let swap_pair = (i, point(new_grid_x, new_grid_y));
                         // this logic is to allow "trains" of adjacent particles
@@ -219,29 +180,6 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     };
 
     needs_update
-}
-
-fn apply_gravity(world: &mut World) {
-    for i in 0..WORLD_SIZE as usize {
-        match &mut world[i] {
-            Some(ref mut tile) => {
-                if tile.has_flag(GRAVITY) && !tile.paused {
-                    tile.velocity.y = tile.velocity.y.saturating_add(1);
-                }
-            }
-            None => { }
-        }
-    }
-}
-
-fn apply_decay_reactions(world: &mut World) {
-    for i in 0..WORLD_SIZE as usize {
-        if let Some(tile) = &world[i] {
-            if let Some(reaction) = tile.element.decay_reaction {
-                reaction(world, i);
-            }
-        }
-    }
 }
 
 fn coords(i: usize) -> (i32, i32) {
@@ -291,25 +229,8 @@ static WATER : Element = Element {
     id: 6,
     decay_reaction: Some(|w, p| {
         // Water "jiggles" slightly
-        let mut rng = thread_rng();
         let water_tile = w[p].as_mut().unwrap();
-        water_tile.velocity.x += rng.gen_range(-3, 4);
-        // if let Some(below_pos) = below(p) {
-        //     if w[below_pos].is_some() {
-        //         let (x,y) = coords(below_pos);
-        //         let (first_choice, second_choice) = if rng.gen::<bool>() {
-        //             (x+1, x-1)
-        //         } else {
-        //             (x+1, x-1)
-        //         };
-        //         if in_bounds(first_choice, y) && w[point(first_choice, y)].is_none() {
-        //             w.swap(point(first_choice, y), p);
-        //         }
-        //         else if in_bounds(second_choice, y) && w[point(second_choice, y)].is_none() {
-        //             w.swap(point(second_choice, y), p)
-        //         }
-        //     }
-        // }
+        water_tile.velocity.x += thread_rng().gen_range(-3, 4);
     }),
 };
 
@@ -501,12 +422,12 @@ impl App {
         let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
         let mut i = 0;
         while i < frames_to_render.trunc() as i32 {
-            pause_particles(&mut self.world);
+            self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
-                apply_gravity(&mut self.world);
+                self.world.apply_gravity();
             }
             if self.turn % DECAY_REACTION_PERIOD == 0 {
-                apply_decay_reactions(&mut self.world);
+                self.world.apply_decay_reactions();
             }
             apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;

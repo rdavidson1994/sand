@@ -1,5 +1,5 @@
 use std::ops::{IndexMut, Index};
-use crate::{CollisionSideEffect, CollisionReaction, WORLD_HEIGHT, WORLD_WIDTH, adjacent_x, FIXED, Element, above};
+use crate::{CollisionSideEffect, CollisionReaction, WORLD_HEIGHT, WORLD_WIDTH, adjacent_x, FIXED, Element, above, WORLD_SIZE, PAUSE_EXEMPT, PAUSE_VELOCITY, GRAVITY};
 use crate::tile::Tile;
 
 const EMPTY_TILE : Option<Tile> = None;
@@ -103,6 +103,67 @@ impl World {
         }
     }
 
+    pub fn has_stable_floor(&self, position: usize) -> bool {
+        match crate::below(position) {
+            Some(floor_position) => {
+                match &self[floor_position] {
+                    Some(tile) => {
+                        tile.has_flag(FIXED)
+                        || tile.paused
+                    },
+                    None => false
+                }
+            },
+            None => true // The bottom of the world counts as stable
+        }
+    }
+
+    pub fn pause_particles(&mut self) {
+        for i in 0..WORLD_SIZE as usize {
+            match &self[i] {
+                Some(tile) => {
+                    if tile.paused
+                        || tile.has_flag(PAUSE_EXEMPT)
+                        || tile.velocity.x.abs() > PAUSE_VELOCITY
+                        || tile.velocity.y.abs() > PAUSE_VELOCITY
+                        || !self.has_stable_floor(i) {
+                        continue;
+                    }
+                }
+                None => {
+                    continue;
+                }
+            }
+            // Since we didn't continue to the next iteration, world[i] is not None
+            let tile = self[i].as_mut().unwrap();
+            tile.paused = true;
+            tile.velocity.x = 0;
+            tile.velocity.y = 0;
+        }
+    }
+
+    pub fn apply_gravity(&mut self) {
+        for i in 0..WORLD_SIZE as usize {
+            match &mut self[i] {
+                Some(ref mut tile) => {
+                    if tile.has_flag(GRAVITY) && !tile.paused {
+                        tile.velocity.y = tile.velocity.y.saturating_add(1);
+                    }
+                }
+                None => { }
+            }
+        }
+    }
+
+    pub fn apply_decay_reactions(&mut self) {
+        for i in 0..WORLD_SIZE as usize {
+            if let Some(tile) = &self[i] {
+                if let Some(reaction) = tile.element.decay_reaction {
+                    reaction(self, i);
+                }
+            }
+        }
+    }
 
     pub fn register_collision_reaction(
         &mut self,
