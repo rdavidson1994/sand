@@ -4,6 +4,18 @@ use crate::tile::Tile;
 
 const EMPTY_TILE : Option<Tile> = None;
 
+pub struct World {
+    grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
+    collision_side_effects: std::collections::HashMap<
+        (u32, u32),
+        CollisionSideEffect
+    >,
+    collision_reactions: std::collections::HashMap<
+        (u32, u32),
+        CollisionReaction
+    >
+}
+
 trait PairwiseMutate {
     type T;
     fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T);
@@ -41,22 +53,10 @@ impl Index<usize> for World {
     }
 }
 
-pub struct World {
-    grid: [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
-    collision_side_effects: std::collections::HashMap<
-        (u32, u32),
-        CollisionSideEffect
-    >,
-    collision_reactions: std::collections::HashMap<
-        (u32, u32),
-        CollisionReaction
-    >
-}
-
 impl World {
     pub fn new() -> World {
         World {
-            grid: [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
+            grid: Box::new([EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize]),
             collision_side_effects: std::collections::HashMap::new(),
             collision_reactions: std::collections::HashMap::new(),
         }
@@ -158,11 +158,16 @@ impl World {
     pub fn apply_decay_reactions(&mut self) {
         for i in 0..WORLD_SIZE as usize {
             if let Some(tile) = &self[i] {
-                if let Some(reaction) = tile.element.decay_reaction {
+                if let Some(reaction) = tile.get_element().decay_reaction {
                     reaction(self, i);
                 }
             }
         }
+        // for i in 0..WORLD_SIZE as usize {
+        //     if let Some(tile) = &mut self[i] {
+        //         tile.save_state();
+        //     }
+        // }
     }
 
     pub fn register_collision_reaction(
@@ -199,8 +204,8 @@ impl World {
 
     fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
         // If we can't unwrap here, a collision occured in empty space
-        let source_element_id = self[source].as_mut().unwrap().element.id;
-        let destination_element_id = self[destination].as_mut().unwrap().element.id;
+        let source_element_id = self[source].as_ref().unwrap().get_element().id;
+        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
         if let Some(reaction) = self.collision_side_effects.get_mut(&(first_element_id, last_element_id)) {
@@ -218,8 +223,8 @@ impl World {
     }
 
     fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
-        let source_element_id = self[source].as_ref().unwrap().element.id;
-        let destination_element_id = self[destination].as_ref().unwrap().element.id;
+        let source_element_id = self[source].as_ref().unwrap().get_element().id;
+        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
         if let Some(reaction) = self.collision_reactions.get_mut(&(first_element_id, last_element_id)) {
@@ -228,7 +233,7 @@ impl World {
                 source_option.as_mut().unwrap(),
                 destination_option.as_mut().unwrap()
             );
-            if first_element_id == source_tile.element.id {
+            if first_element_id == source_element_id {
                 reaction(destination_tile, source_tile);
             }
             else {

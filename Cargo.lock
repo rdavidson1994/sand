@@ -1215,6 +1215,7 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "itertools",
+ "lazy_static",
  "num",
  "piston",
  "piston2d-graphics",

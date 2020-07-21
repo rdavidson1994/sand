@@ -4,6 +4,9 @@ use num::Bounded;
 use std::convert::TryFrom;
 use std::any::type_name;
 
+mod element_state;
+pub use element_state::*;
+
 const BASE_RESTITUTION : f64 = 0.5;
 const BASE_COLLIDE_RESTITUTION : f64 = 0.8;
 
@@ -18,13 +21,31 @@ pub struct Tile {
     pub paused: bool,
     pub velocity: Vector,
     pub position: Vector,
-    pub element: &'static Element,
+    element: &'static Element,
+    element_data: ElementData,
 }
 
 impl Tile {
-    pub fn stationary(element: &'static Element) -> Tile {
+    pub fn new(
+        element: &'static Element,
+        element_state: ElementState,
+        position: Vector,
+        velocity: Vector,
+        paused: bool,
+    ) -> Tile
+    {
+        Tile {
+            element,
+            element_data : ElementData::new(element_state),
+            paused,
+            position,
+            velocity
+        }
+    }
+    pub fn stationary(element: &'static Element, element_state: ElementState) -> Tile {
         Tile{
             element,
+            element_data: ElementData::new(element_state),
             paused: false,
             position: Vector {
                 x: 0,
@@ -35,6 +56,35 @@ impl Tile {
                 y: 0,
             },
         }
+    }
+
+    pub fn set_element(&mut self, element: &'static Element) {
+        self.element = element;
+        self.element_data = ElementData::none();
+    }
+
+    pub fn get_element(&self) -> &'static Element {
+        self.element
+    }
+
+    pub fn element_id(&self) -> u32 {
+        self.element.id
+    }
+
+    pub fn edit_state(&mut self, new_state: ElementState) {
+        self.element_data.stage(new_state);
+    }
+
+    pub fn save_state(&mut self) {
+        self.element_data.commit();
+    }
+
+    pub fn get_state(&self) -> &ElementState {
+        self.element_data.as_ref()
+    }
+
+    pub fn color(&self) -> &[f32; 4] {
+        &self.element.color
     }
 
     pub fn has_flag(&self, flag: EFlag) -> bool {
