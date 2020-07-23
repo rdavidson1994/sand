@@ -1,4 +1,4 @@
-use crate::{Element, EFlag};
+use crate::{Element, EFlag, ELEMENTS};
 use std::fmt::Display;
 use num::Bounded;
 use std::convert::TryFrom;
@@ -21,13 +21,11 @@ pub struct Tile {
     pub paused: bool,
     pub velocity: Vector,
     pub position: Vector,
-    element: &'static Element,
     element_data: ElementData,
 }
 
 impl Tile {
     pub fn new(
-        element: &'static Element,
         element_state: ElementState,
         position: Vector,
         velocity: Vector,
@@ -35,16 +33,14 @@ impl Tile {
     ) -> Tile
     {
         Tile {
-            element,
             element_data : ElementData::new(element_state),
             paused,
             position,
             velocity
         }
     }
-    pub fn stationary(element: &'static Element, element_state: ElementState) -> Tile {
+    pub fn stationary(element_state: ElementState) -> Tile {
         Tile{
-            element,
             element_data: ElementData::new(element_state),
             paused: false,
             position: Vector {
@@ -59,16 +55,18 @@ impl Tile {
     }
 
     pub fn set_element(&mut self, element: &'static Element) {
-        self.element = element;
-        self.element_data = ElementData::none();
+        self.element_data = ElementData::new(
+            ElementState::new(element.id())
+        );
     }
 
     pub fn get_element(&self) -> &'static Element {
-        self.element
+        &ELEMENTS[self.element_id() as usize]
+        //self.element
     }
 
-    pub fn element_id(&self) -> u32 {
-        self.element.id
+    pub fn element_id(&self) -> u8 {
+        self.element_data.element_id().0
     }
 
     pub fn edit_state(&mut self, new_state: ElementState) {
@@ -84,19 +82,19 @@ impl Tile {
     }
 
     pub fn color(&self) -> &[f32; 4] {
-        &self.element.color
+        &self.get_element().color
     }
 
     pub fn has_flag(&self, flag: EFlag) -> bool {
-        self.element.has_flag(flag)
+        self.get_element().has_flag(flag)
     }
 
     pub fn elastic_collide_y(&mut self, particle2: &mut Tile) {
         let (v1y, v2y) = elastic_collide(
             self.velocity.y,
             particle2.velocity.y,
-            self.element.mass,
-            particle2.element.mass,
+            self.get_element().mass,
+            particle2.get_element().mass,
         );
         self.velocity.y = v1y;
         particle2.velocity.y = v2y;
@@ -106,8 +104,8 @@ impl Tile {
         let (v1x, v2x) = elastic_collide(
             self.velocity.x,
             particle2.velocity.x,
-            self.element.mass,
-            particle2.element.mass,
+            self.get_element().mass,
+            particle2.get_element().mass,
         );
         self.velocity.x = v1x;
         particle2.velocity.x = v2x;

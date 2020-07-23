@@ -1,10 +1,14 @@
 mod tile;
 mod fire;
+mod sand;
 mod world;
+mod util;
 
 use crate::fire::{FIRE, FireElementSetup};
+use crate::sand::{SAND, SandSetup};
 use crate::tile::{Tile, Vector, ElementState};
-use itertools::iproduct;
+use itertools::{Itertools, iproduct};
+use lazy_static::{lazy_static, self as lazy_static_crate};
 use rand::{Rng, thread_rng};
 use std::collections::VecDeque;
 const WORLD_WIDTH : i32 = 120;
@@ -44,9 +48,18 @@ use piston::input::{
 };
 use piston::window::WindowSettings;
 use crate::world::World;
+use std::num::NonZeroU8;
 
-pub trait ElementSetup {
-    fn register_reactions(&mut self, world: &mut World);
+#[derive(Clone, Copy)]
+pub struct ElementId(u8);
+
+#[derive(Clone)]
+pub struct SpecialElementInfo(NonZeroU8);
+
+pub trait ElementSetup : Sync {
+    fn register_reactions(&self, world: &mut World);
+    fn build_element(&self) -> Element;
+    fn get_id(&self) -> ElementId;
 }
 
 // Can't use bitflags crate at the moment, since we need FLAG1 | FLAG2 to be const
@@ -56,18 +69,22 @@ const GRAVITY : EFlag = 1 << 0;
 const FIXED : EFlag = 1 << 1;
 const PAUSE_EXEMPT : EFlag = 1 << 2;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Element {
     flags : EFlag,
     color : [f32; 4],
     mass: i8,
-    id: u32,
+    id: u8,
     decay_reaction: Option<fn(&mut World, usize)>
 }
 
 impl Element {
     fn has_flag(&self, flag: EFlag) -> bool {
         flag & self.flags != 0
+    }
+
+    fn id(&self) -> ElementId {
+        ElementId(self.id)
     }
 }
 
@@ -125,6 +142,40 @@ fn adjacent_y(position1: usize, position2: usize) -> bool {
         Some(x) => x == position2
     };
     is_above || is_below
+}
+
+pub fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
+    let x = index as i32 % WORLD_WIDTH;
+    let y = index as i32 / WORLD_WIDTH;
+    iproduct!(-1i32..=1, -1i32..=1) // consider all adjacent tuples
+        .filter(|&tuple| tuple != (0,0)) // exclude same tile
+        .map(|(dx,dy)| (x+dx, y+dy))
+        .filter(|&(x,y)|  // exclude tiles outside world bounds
+            in_bounds(x,y)
+        ).map(|(x,y)| (x+y*WORLD_WIDTH) as usize) // calculate index
+        .for_each(|minimum| f(minimum)); // apply input function
+}
+
+#[test]
+fn for_neighbors_test() {
+    let mut results = std::collections::HashSet::<usize>::new();
+    for_neighbors(point(5,5), |i| {
+        assert!(results.insert(i));
+    });
+    assert!(results.contains(&point(4,4)));
+    assert!(results.contains(&point(4,5)));
+    assert!(results.contains(&point(4,6)));
+    assert!(results.contains(&point(5,4)));
+    // The center (5,5), is not included
+    assert!(results.contains(&point(5,6)));
+    assert!(results.contains(&point(6,4)));
+    assert!(results.contains(&point(6,5)));
+    assert!(results.contains(&point(6,6)));
+    let mut count = 0;
+    for _ in results.drain() {
+        count += 1
+    };
+    assert_eq!(count, 8);
 }
 
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
@@ -198,6 +249,13 @@ static WALL : Element = Element {
     decay_reaction: None,
 };
 
+struct WallSetup;
+impl ElementSetup for WallSetup {
+    fn register_reactions(&self, _world: &mut World) { }
+    fn get_id(&self) -> ElementId { WALL.id() }
+    fn build_element(&self) -> Element { WALL.clone() }
+}
+
 static ROCK : Element = Element {
     flags: GRAVITY,
     color: [0.5, 0.5, 0.5, 1.0],
@@ -206,13 +264,13 @@ static ROCK : Element = Element {
     decay_reaction: None,
 };
 
-static SAND : Element = Element {
-    flags: GRAVITY,
-    color: [1.0, 1.0, 0.5, 1.0],
-    mass: 10,
-    id: 2,
-    decay_reaction: None,
-};
+// TODO move to file
+struct RockSetup;
+impl ElementSetup for RockSetup {
+    fn register_reactions(&self, _world: &mut World) { }
+    fn get_id(&self) -> ElementId { ROCK.id() }
+    fn build_element(&self) -> Element { ROCK.clone() }
+}
 
 static GAS : Element = Element {
     flags: PAUSE_EXEMPT,
@@ -237,175 +295,6 @@ static WATER : Element = Element {
 type CollisionSideEffect = fn(&mut World, usize, usize);
 type CollisionReaction = fn(&mut Tile, &mut Tile);
 
-fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
-    let x = index as i32 % WORLD_WIDTH;
-    let y = index as i32 / WORLD_WIDTH;
-    iproduct!(-1i32..=1, -1i32..=1) // consider all adjacent tuples
-        .filter(|&tuple| tuple != (0,0)) // exclude same tile
-        .map(|(dx,dy)| (x+dx, y+dy))
-        .filter(|&(x,y)|  // exclude tiles outside world bounds
-            in_bounds(x,y)
-        ).map(|(x,y)| (x+y*WORLD_WIDTH) as usize) // calculate index
-        .for_each(|minimum| f(minimum)); // apply input function
-}
-
-#[test]
-fn for_neighbors_test() {
-    let mut results = std::collections::HashSet::<usize>::new();
-    for_neighbors(point(5,5), |i| {
-        assert!(results.insert(i));
-    });
-    assert!(results.contains(&point(4,4)));
-    assert!(results.contains(&point(4,5)));
-    assert!(results.contains(&point(4,6)));
-    assert!(results.contains(&point(5,4)));
-    // The center (5,5), is not included
-    assert!(results.contains(&point(5,6)));
-    assert!(results.contains(&point(6,4)));
-    assert!(results.contains(&point(6,5)));
-    assert!(results.contains(&point(6,6)));
-    let mut count = 0;
-    for _ in results.drain() {
-        count += 1
-    };
-    assert_eq!(count, 8);
-}
-
-#[allow(dead_code)]
-fn populate_world_bullet(world: &mut World) {
-    world[point(10,10)] = Some(Tile::new(
-        &GAS,
-        ElementState::None,
-        Vector {x: 0, y: 0},
-        Vector {x: 127, y:0},
-        false,
-    ))
-}
-
-fn populate_world_water_bubble(world: &mut World) {
-    for x in 1..WORLD_WIDTH-1 {
-        for y in WORLD_HEIGHT-20..WORLD_HEIGHT-1 {
-            world[point(x,y)] = Some(
-                Tile::new(
-                    &SAND,
-                    ElementState::None,
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    true,
-                )
-            )
-        }
-    }
-
-    for x in 20..WORLD_WIDTH-20 {
-        for y in WORLD_HEIGHT-65..WORLD_HEIGHT-45 {
-            world[point(x,y)] = Some(
-                Tile::new(
-                    &SAND,
-                    ElementState::None,
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    false,
-                )
-            )
-        }
-    }
-}
-
-#[allow(dead_code)]
-fn populate_world_pileup(world: &mut World) {
-    //let mut rng = thread_rng();
-    for x in 5..10 {
-        for y in 5..10 {
-            world[point(x,y)] = Some(
-                Tile::new(
-                    &GAS,
-                    ElementState::None,
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    Vector {
-                        x : 0,
-                        y : 0,
-                    },
-                    false,
-                )
-            )
-        }
-    }
-
-    for x in 55..60 {
-        for y in 5..10 {
-            world[point(x,y)] = Some(Tile::new(
-                &GAS,
-                ElementState::None,
-                Vector {
-                    x : 0,//rng.gen_range(-50,50),
-                    y : 0,//rng.gen_range(-50,50),
-                },
-                Vector {
-                    x : -10,
-                    y : 0,//10,
-                },
-                false,
-            ))
-        }
-    }
-}
-
-fn create_walls(world: &mut World) {
-    for i in 0..WORLD_WIDTH {
-        world[point(i, 0)] = Some(Tile::stationary(&WALL, ElementState::None));
-        world[point(i, WORLD_HEIGHT-1)] = Some(Tile::stationary(&WALL, ElementState::None));
-    }
-    for i in 0..WORLD_HEIGHT {
-        world[point(0, i)] = Some(Tile::stationary(&WALL, ElementState::None));
-        world[point(WORLD_WIDTH-1, i)] = Some(Tile::stationary(&WALL, ElementState::None));
-    }
-}
-
-#[allow(dead_code)]
-fn populate_world(world: &mut World) {
-    let mut rng = thread_rng();
-    for i in 0..45 {
-        let x_offset = rng.gen_range(0,20);
-        let y_offset = rng.gen_range(0,20);
-        //let element = &SAND;
-        let element = if i < 15 {
-            &ROCK
-        } else if i < 30 {
-            &SAND
-        } else {
-            &FIRE
-        };
-        world[point(15+x_offset, 5+y_offset)] = Some(Tile::new(
-            element,
-            ElementState::None,
-            Vector {
-                x: 0,
-                y: 0,
-            },
-            Vector {
-                x: rng.gen_range(-1,1),
-                y: rng.gen_range(-1,1),
-            },
-            false
-        ))
-    }
-}
 
 struct App {
     gl: GlGraphics,
@@ -435,7 +324,11 @@ impl App {
             for i in 0..WORLD_SIZE as usize {
                 if let Some(tile) = &world_ref[i] {
                     let (x, y) = coords(i);
-                    let square = rectangle::square((x*TILE_PIXELS) as f64, (y*TILE_PIXELS) as f64, TILE_PIXELS as f64);
+                    let square = rectangle::square(
+                        (x*TILE_PIXELS) as f64,
+                        (y*TILE_PIXELS) as f64,
+                        TILE_PIXELS as f64
+                    );
                     rectangle(*tile.color(), square, transform, gl);
                 }
             }
@@ -482,7 +375,7 @@ impl Pen for ElementPen {
         let y = y.trunc() as i32 / TILE_PIXELS;
         if in_bounds(x, y) && world[point(x, y)].is_none() {
             world[point(x, y)] = Some(Tile::new(
-                self.element, ElementState::None,
+                ElementState::new(self.element.id()),
                 Vector { x : 0, y : 0 },
                 Vector {
                     x : thread_rng().gen_range(-20,21),
@@ -494,12 +387,35 @@ impl Pen for ElementPen {
     }
 }
 
+lazy_static! {
+    static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
+        vec![
+            Box::new(SandSetup),
+            Box::new(RockSetup),
+            Box::new(WallSetup),
+            // Todo: add the rest of the elements
+        ]
+    };
+}
+
+lazy_static! {
+    static ref ELEMENTS: Vec<Element> = {
+        let mut out = vec![];
+        for s in SETUPS.iter().sorted_by_key(|x| x.get_id().0) {
+            out.push(s.build_element());
+        }
+        for (i, elem) in out.iter().enumerate() {
+            //assert_eq!(i, elem.id as usize);
+        }
+        out
+   };
+}
+
 pub fn game_loop() {
-    let setups = vec![
-        Box::new(FireElementSetup)
-    ];
+    lazy_static_crate::initialize(&SETUPS);
+    lazy_static_crate::initialize(&ELEMENTS);
     let mut world = World::new();
-    for mut s in setups {
+    for s in SETUPS.iter() {
         s.register_reactions(&mut world);
     }
 
@@ -508,8 +424,8 @@ pub fn game_loop() {
 
 
     //let mut i = 0;
-    create_walls(&mut world);
-    populate_world_water_bubble(&mut world);
+    util::create_walls(&mut world);
+    util::populate_world_water_bubble(&mut world);
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.
@@ -529,9 +445,10 @@ pub fn game_loop() {
         needs_render: true,
     };
     let mut selected_pen : Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
-    let mut events = Events::new(EventSettings::new());
     let mut drawing = false;
     let mut last_mouse_pos = (-1.0, -1.0);
+
+    let mut events = Events::new(EventSettings::new());
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);

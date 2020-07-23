@@ -1,5 +1,18 @@
 use std::ops::{IndexMut, Index};
-use crate::{CollisionSideEffect, CollisionReaction, WORLD_HEIGHT, WORLD_WIDTH, adjacent_x, FIXED, Element, above, WORLD_SIZE, PAUSE_EXEMPT, PAUSE_VELOCITY, GRAVITY};
+use crate::{
+    CollisionSideEffect,
+    CollisionReaction,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
+    adjacent_x,
+    FIXED,
+    Element,
+    above,
+    WORLD_SIZE,
+    PAUSE_EXEMPT,
+    PAUSE_VELOCITY,
+    GRAVITY
+};
 use crate::tile::Tile;
 
 const EMPTY_TILE : Option<Tile> = None;
@@ -7,11 +20,11 @@ const EMPTY_TILE : Option<Tile> = None;
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
     collision_side_effects: std::collections::HashMap<
-        (u32, u32),
+        (u8, u8),
         CollisionSideEffect
     >,
     collision_reactions: std::collections::HashMap<
-        (u32, u32),
+        (u8, u8),
         CollisionReaction
     >
 }
@@ -24,12 +37,12 @@ trait PairwiseMutate {
 impl<U> PairwiseMutate for [U] {
     type T = U;
     fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T) {
+        if first == second {
+            panic!("Attempt to mutate a pair consisting of the same index twice.")
+        }
         let swapped = second < first;
         let minimum = if !swapped { first } else { second };
         let maximum = if !swapped { second } else { first };
-        if minimum == maximum {
-            panic!("Attempt to mutate a pair consisting of the same index twice.")
-        }
         let (head, tail) = self.split_at_mut(minimum + 1);
         if !swapped {
             (&mut head[minimum], &mut tail[maximum - minimum - 1])
@@ -268,4 +281,3 @@ impl World {
         }
     }
 }
-
