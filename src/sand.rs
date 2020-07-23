@@ -1,12 +1,6 @@
-use crate::{
-    Element,
-    ElementSetup,
-    ElementId,
-    GRAVITY,
-    World,
-};
+use crate::{Element, ElementId, ElementSetup, World, GRAVITY};
 
-pub static SAND : Element = Element {
+pub static SAND: Element = Element {
     flags: GRAVITY,
     color: [1.0, 1.0, 0.5, 1.0],
     mass: 10,
@@ -16,11 +10,11 @@ pub static SAND : Element = Element {
 
 pub struct SandSetup;
 impl ElementSetup for SandSetup {
-    fn register_reactions(&self, _world: &mut World) { }
+    fn register_reactions(&self, _world: &mut World) {}
     fn build_element(&self) -> Element {
         SAND.clone()
     }
-    fn get_id(&self) -> ElementId { 
+    fn get_id(&self) -> ElementId {
         SAND.id()
     }
 }

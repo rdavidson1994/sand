@@ -1,20 +1,10 @@
 use crate::{
-    GRAVITY,
-    NO_FLAGS,
-    SAND,
-    WATER,
-    for_neighbors,
-    Element,
-    World,
-    Tile,
-    Vector,
-    ElementSetup,
-    ElementState,
-    ElementId,
+    for_neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World, GRAVITY,
+    NO_FLAGS, SAND, WATER,
 };
 use rand::{thread_rng, Rng};
 
-static ASH : Element = Element {
+static ASH: Element = Element {
     flags: GRAVITY,
     color: [0.3, 0.3, 0.3, 1.0],
     mass: 3,
@@ -22,7 +12,7 @@ static ASH : Element = Element {
     decay_reaction: None,
 };
 
-pub static FIRE : Element = Element {
+pub static FIRE: Element = Element {
     flags: NO_FLAGS,
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
@@ -68,19 +58,23 @@ impl ElementSetup for FireElementSetup {
     fn register_reactions(&self, world: &mut World) {
         // Fire burns sand
         world.register_collision_reaction(&FIRE, &SAND, |_fire_tile, sand_tile| {
-            sand_tile.set_element(&FIRE);
+            sand_tile.set_element(FIRE.id());
         });
         //world.register_collision_side_effect(&FIRE, &SAND, burn);
 
         // Water extinguishes fire
         world.register_collision_reaction(&FIRE, &WATER, |fire_tile, _water_tile| {
-            fire_tile.set_element(&ASH);
+            fire_tile.set_element(ASH.id());
         });
     }
 
-    fn build_element(&self) -> Element { FIRE.clone() }
+    fn build_element(&self) -> Element {
+        FIRE.clone()
+    }
 
-    fn get_id(&self) -> ElementId { ElementId(FIRE.id) }
+    fn get_id(&self) -> ElementId {
+        ElementId(FIRE.id)
+    }
 }
 
 // fn burn(world: &mut World, _fire_loc: usize, other_loc: usize) {
@@ -108,4 +102,3 @@ impl ElementSetup for FireElementSetup {
 //         }
 //     });
 // }
-

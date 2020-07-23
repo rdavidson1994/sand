@@ -11,25 +11,22 @@
 //     ChargedHead,
 //     ChargedTail,
 // }
-use std::num::NonZeroU8;
 use crate::{ElementId, SpecialElementInfo};
+use std::num::NonZeroU8;
 
 #[derive(Clone)]
 pub struct ElementState {
-    element_id : ElementId,
-    special_info : SpecialElementInfo,
+    element_id: ElementId,
+    special_info: SpecialElementInfo,
 }
 
 impl ElementState {
     pub fn new(element_id: ElementId) -> ElementState {
         ElementState {
             element_id,
-            special_info: SpecialElementInfo(
-                unsafe {
-                    // Safe because 1 != 0
-                    NonZeroU8::new_unchecked(1)
-                }
-            ),
+            special_info: SpecialElementInfo(unsafe {
+                NonZeroU8::new(1).unwrap()
+            }),
         }
     }
 }
@@ -43,8 +40,8 @@ pub struct ElementData {
 impl ElementData {
     pub fn new(state: ElementState) -> ElementData {
         ElementData {
-            current : state.clone(),
-            staged : state
+            current: state.clone(),
+            staged: state,
         }
     }
 

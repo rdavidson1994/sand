@@ -1,32 +1,16 @@
-use std::ops::{IndexMut, Index};
-use crate::{
-    CollisionSideEffect,
-    CollisionReaction,
-    WORLD_HEIGHT,
-    WORLD_WIDTH,
-    adjacent_x,
-    FIXED,
-    Element,
-    above,
-    WORLD_SIZE,
-    PAUSE_EXEMPT,
-    PAUSE_VELOCITY,
-    GRAVITY
-};
 use crate::tile::Tile;
+use crate::{
+    above, adjacent_x, CollisionReaction, CollisionSideEffect, Element, FIXED, GRAVITY,
+    PAUSE_EXEMPT, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
+};
+use std::ops::{Index, IndexMut};
 
-const EMPTY_TILE : Option<Tile> = None;
+const EMPTY_TILE: Option<Tile> = None;
 
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
-    collision_side_effects: std::collections::HashMap<
-        (u8, u8),
-        CollisionSideEffect
-    >,
-    collision_reactions: std::collections::HashMap<
-        (u8, u8),
-        CollisionReaction
-    >
+    collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
+    collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
 }
 
 trait PairwiseMutate {
@@ -46,8 +30,7 @@ impl<U> PairwiseMutate for [U] {
         let (head, tail) = self.split_at_mut(minimum + 1);
         if !swapped {
             (&mut head[minimum], &mut tail[maximum - minimum - 1])
-        }
-        else {
+        } else {
             (&mut tail[maximum - minimum - 1], &mut head[minimum])
         }
     }
@@ -60,7 +43,7 @@ impl IndexMut<usize> for World {
 }
 
 impl Index<usize> for World {
-    type Output=Option<Tile>;
+    type Output = Option<Tile>;
     fn index(&self, i: usize) -> &Self::Output {
         &self.grid[i]
     }
@@ -82,7 +65,7 @@ impl World {
     pub fn move_particle(&mut self, source: usize, destination: usize) {
         let (source_tile, dest_tile) = self.mutate_pair(source, destination);
         match (source_tile, dest_tile) {
-        //match (world[source].as_mut(), world[destination].as_mut()) {
+            //match (world[source].as_mut(), world[destination].as_mut()) {
             (None, None) | (None, Some(_)) => {
                 //Source particle has moved for some other reason - nothing to do
             }
@@ -95,17 +78,16 @@ impl World {
                 if adjacent_x(source, destination) {
                     if d.has_flag(FIXED) {
                         s.reflect_velocity_x();
-                    }
-                    else {
+                    } else {
                         s.elastic_collide_x(d);
                         self.unpause(destination);
                     }
-                }
-                else /*if adjacent_y(source, destination)*/ {
+                } else
+                /*if adjacent_y(source, destination)*/
+                {
                     if d.has_flag(FIXED) {
                         s.reflect_velocity_y();
-                    }
-                    else {
+                    } else {
                         s.elastic_collide_y(d);
                         self.unpause(destination);
                     }
@@ -118,16 +100,11 @@ impl World {
 
     pub fn has_stable_floor(&self, position: usize) -> bool {
         match crate::below(position) {
-            Some(floor_position) => {
-                match &self[floor_position] {
-                    Some(tile) => {
-                        tile.has_flag(FIXED)
-                        || tile.paused
-                    },
-                    None => false
-                }
+            Some(floor_position) => match &self[floor_position] {
+                Some(tile) => tile.has_flag(FIXED) || tile.paused,
+                None => false,
             },
-            None => true // The bottom of the world counts as stable
+            None => true, // The bottom of the world counts as stable
         }
     }
 
@@ -139,7 +116,8 @@ impl World {
                         || tile.has_flag(PAUSE_EXEMPT)
                         || tile.velocity.x.abs() > PAUSE_VELOCITY
                         || tile.velocity.y.abs() > PAUSE_VELOCITY
-                        || !self.has_stable_floor(i) {
+                        || !self.has_stable_floor(i)
+                    {
                         continue;
                     }
                 }
@@ -163,7 +141,7 @@ impl World {
                         tile.velocity.y = tile.velocity.y.saturating_add(1);
                     }
                 }
-                None => { }
+                None => {}
             }
         }
     }
@@ -194,8 +172,11 @@ impl World {
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_reactions.insert(reagent_ids, reaction);
         match conflict {
-            Some(_) => {panic!("Attempt to register a duplicate reaction for {:?}", reagent_ids)},
-            None => () // All good
+            Some(_) => panic!(
+                "Attempt to register a duplicate reaction for {:?}",
+                reagent_ids
+            ),
+            None => (), // All good
         }
     }
 
@@ -210,27 +191,31 @@ impl World {
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_side_effects.insert(reagent_ids, side_effect);
         match conflict {
-            Some(_) => {panic!("Attempt to register a duplicate reaction for {:?}", reagent_ids)},
-            None => () // All good
+            Some(_) => panic!(
+                "Attempt to register a duplicate reaction for {:?}",
+                reagent_ids
+            ),
+            None => (), // All good
         }
     }
 
     fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
-        // If we can't unwrap here, a collision occured in empty space
+        // If we can't unwrap here, a collision occurred in empty space
         let source_element_id = self[source].as_ref().unwrap().get_element().id;
         let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self.collision_side_effects.get_mut(&(first_element_id, last_element_id)) {
+        if let Some(reaction) = self
+            .collision_side_effects
+            .get_mut(&(first_element_id, last_element_id))
+        {
             if first_element_id == source_element_id {
                 reaction(self, destination, source);
-            }
-            else {
+            } else {
                 reaction(self, source, destination);
             }
             true
-        }
-        else {
+        } else {
             false
         }
     }
@@ -240,26 +225,31 @@ impl World {
         let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self.collision_reactions.get_mut(&(first_element_id, last_element_id)) {
+        if let Some(reaction) = self
+            .collision_reactions
+            .get_mut(&(first_element_id, last_element_id))
+        {
             let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
             let (source_tile, destination_tile) = (
                 source_option.as_mut().unwrap(),
-                destination_option.as_mut().unwrap()
+                destination_option.as_mut().unwrap(),
             );
             if first_element_id == source_element_id {
                 reaction(destination_tile, source_tile);
-            }
-            else {
+            } else {
                 reaction(source_tile, destination_tile);
             }
             true
-        }
-        else {
+        } else {
             false
         }
     }
 
-    fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Option<Tile>, &mut Option<Tile>) {
+    fn mutate_pair(
+        &mut self,
+        first: usize,
+        second: usize,
+    ) -> (&mut Option<Tile>, &mut Option<Tile>) {
         self.grid.mutate_pair(first, second)
     }
 

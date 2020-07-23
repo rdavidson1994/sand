@@ -1,19 +1,19 @@
-use crate::{Element, EFlag, ELEMENTS};
-use std::fmt::Display;
+use crate::{EFlag, Element, ElementId, ELEMENTS};
 use num::Bounded;
-use std::convert::TryFrom;
 use std::any::type_name;
+use std::convert::TryFrom;
+use std::fmt::Display;
 
 mod element_state;
 pub use element_state::*;
 
-const BASE_RESTITUTION : f64 = 0.5;
-const BASE_COLLIDE_RESTITUTION : f64 = 0.8;
+const BASE_RESTITUTION: f64 = 0.5;
+const BASE_COLLIDE_RESTITUTION: f64 = 0.8;
 
 #[derive(Clone)]
 pub struct Vector {
-    pub x : i8,
-    pub y : i8,
+    pub x: i8,
+    pub y: i8,
 }
 
 #[derive(Clone)]
@@ -30,34 +30,25 @@ impl Tile {
         position: Vector,
         velocity: Vector,
         paused: bool,
-    ) -> Tile
-    {
+    ) -> Tile {
         Tile {
-            element_data : ElementData::new(element_state),
+            element_data: ElementData::new(element_state),
             paused,
             position,
-            velocity
+            velocity,
         }
     }
     pub fn stationary(element_state: ElementState) -> Tile {
-        Tile{
+        Tile {
             element_data: ElementData::new(element_state),
             paused: false,
-            position: Vector {
-                x: 0,
-                y: 0,
-            },
-            velocity: Vector {
-                x: 0,
-                y: 0,
-            },
+            position: Vector { x: 0, y: 0 },
+            velocity: Vector { x: 0, y: 0 },
         }
     }
 
-    pub fn set_element(&mut self, element: &'static Element) {
-        self.element_data = ElementData::new(
-            ElementState::new(element.id())
-        );
+    pub fn set_element(&mut self, element: ElementId) {
+        self.element_data = ElementData::new(ElementState::new(element));
     }
 
     pub fn get_element(&self) -> &'static Element {
@@ -118,7 +109,6 @@ impl Tile {
     pub fn reflect_velocity_y(&mut self) {
         self.velocity.y = (-(self.velocity.y as f64) * BASE_RESTITUTION).trunc() as i8;
     }
-
 }
 
 fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
@@ -126,29 +116,28 @@ fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
     let v2 = v2 as f64;
     let m1 = m1 as f64;
     let m2 = m2 as f64;
-    let new_v1 = (((m1 - m2)/(m1 + m2))*v1 + 2.0*m2/(m1+m2)*v2) * BASE_COLLIDE_RESTITUTION;
-    let new_v2 = (((m2 - m1)/(m2 + m1))*v2 + 2.0*m1/(m2+m1)*v1) * BASE_COLLIDE_RESTITUTION;
+    let new_v1 =
+        (((m1 - m2) / (m1 + m2)) * v1 + 2.0 * m2 / (m1 + m2) * v2) * BASE_COLLIDE_RESTITUTION;
+    let new_v2 =
+        (((m2 - m1) / (m2 + m1)) * v2 + 2.0 * m1 / (m2 + m1) * v1) * BASE_COLLIDE_RESTITUTION;
     (
         clamp_convert::<i32, i8>(new_v1.trunc() as i32),
         clamp_convert::<i32, i8>(new_v2.trunc() as i32),
     )
 }
 
-fn clamp_convert<T,V>(t: T) -> V
-    where
-        T : PartialOrd + Copy + Display,
-        V : TryFrom<T> + Bounded + Into<T> + Display,
+fn clamp_convert<T, V>(t: T) -> V
+where
+    T: PartialOrd + Copy + Display,
+    V: TryFrom<T> + Bounded + Into<T> + Display,
 {
     if let Ok(v) = V::try_from(t) {
         v
-    }
-    else if t > V::max_value().into() {
+    } else if t > V::max_value().into() {
         V::max_value()
-    }
-    else if t < V::min_value().into() {
+    } else if t < V::min_value().into() {
         V::min_value()
-    }
-    else {
+    } else {
         panic!(
             "Conversion of {input} from {T} to {V} failed,\
              even though {input} is between {V}::max_value()=={v_max}\
@@ -161,4 +150,3 @@ fn clamp_convert<T,V>(t: T) -> V
         )
     }
 }
-
