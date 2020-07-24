@@ -24,9 +24,17 @@ impl ElementState {
     pub fn new(element_id: ElementId) -> ElementState {
         ElementState {
             element_id,
-            special_info: SpecialElementInfo(unsafe {
-                NonZeroU8::new(1).unwrap()
-            }),
+            special_info: SpecialElementInfo(NonZeroU8::new(1).unwrap()),
+        }
+    }
+
+    pub fn new_with_special(
+        element_id: ElementId,
+        special_info: SpecialElementInfo,
+    ) -> ElementState {
+        ElementState {
+            element_id,
+            special_info,
         }
     }
 }
@@ -47,6 +55,10 @@ impl ElementData {
 
     pub fn element_id(&self) -> ElementId {
         self.current.element_id
+    }
+
+    pub fn special_info(&self) -> u8 {
+        self.current.special_info.0.get()
     }
 
     #[allow(dead_code)]

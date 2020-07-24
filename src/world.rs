@@ -137,7 +137,7 @@ impl World {
         for i in 0..WORLD_SIZE as usize {
             match &mut self[i] {
                 Some(ref mut tile) => {
-                    if tile.has_flag(GRAVITY) && !tile.paused {
+                    if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
                         tile.velocity.y = tile.velocity.y.saturating_add(1);
                     }
                 }
@@ -146,19 +146,22 @@ impl World {
         }
     }
 
-    pub fn apply_decay_reactions(&mut self) {
+    pub fn apply_periodic_reactions(&mut self) {
         for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &self[i] {
-                if let Some(reaction) = tile.get_element().decay_reaction {
-                    reaction(self, i);
+            if let Some(tile) = &mut self[i] {
+                if let Some(reaction) = tile.get_element().periodic_reaction {
+                    reaction(tile)
+                }
+                if let Some(side_effect) = tile.get_element().periodic_side_effect {
+                    side_effect(self, i);
                 }
             }
         }
-        // for i in 0..WORLD_SIZE as usize {
-        //     if let Some(tile) = &mut self[i] {
-        //         tile.save_state();
-        //     }
-        // }
+        for i in 0..WORLD_SIZE as usize {
+            if let Some(tile) = &mut self[i] {
+                tile.save_state();
+            }
+        }
     }
 
     pub fn register_collision_reaction(

@@ -1,25 +1,29 @@
 mod fire;
-mod sand;
+mod metal;
+mod simple_elements;
 mod tile;
 mod util;
 mod world;
 
-use crate::fire::{FireElementSetup, FIRE};
-use crate::sand::{SandSetup, SAND};
+use crate::fire::{FireElementSetup, ASH, FIRE};
+use crate::metal::{ElectronSetup, ELECTRON, METAL, METAL_CHARGED_HEAD, METAL_CHARGED_TAIL};
+use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
 use crate::tile::{ElementState, Tile, Vector};
+use crate::world::World;
+
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
-use std::collections::VecDeque;
-const WORLD_WIDTH: i32 = 120;
-const WORLD_HEIGHT: i32 = 120;
+use std::collections::{HashMap, VecDeque};
+const WORLD_WIDTH: i32 = 200;
+const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
 const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
 const GRAVITY_PERIOD: i32 = 20;
-const DECAY_REACTION_PERIOD: i32 = 100;
+const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
 const SECONDS_PER_LOGICAL_FRAME: f64 = 1.0 / 1400.0; // Based on square = 1inch
                                                      //graphics imports
@@ -28,7 +32,6 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use crate::world::World;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
@@ -39,16 +42,49 @@ use piston::input::{
 use piston::window::WindowSettings;
 use std::num::NonZeroU8;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ElementId(u8);
 
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct SpecialElementInfo(NonZeroU8);
+impl SpecialElementInfo {
+    fn none() -> Self {
+        Self::new(1)
+    }
+
+    fn new(byte: u8) -> Self {
+        SpecialElementInfo(NonZeroU8::new(byte).unwrap())
+    }
+}
 
 pub trait ElementSetup: Sync {
     fn register_reactions(&self, world: &mut World);
     fn build_element(&self) -> Element;
     fn get_id(&self) -> ElementId;
+}
+
+pub struct DefaultSetup {
+    element: &'static Element,
+}
+
+impl DefaultSetup {
+    pub fn new(element: &'static Element) -> Self {
+        DefaultSetup { element }
+    }
+}
+
+impl ElementSetup for DefaultSetup {
+    fn register_reactions(&self, _world: &mut World) {
+        // Do nothing
+    }
+
+    fn build_element(&self) -> Element {
+        self.element.clone()
+    }
+
+    fn get_id(&self) -> ElementId {
+        self.element.id()
+    }
 }
 
 // Can't use bitflags crate at the moment, since we need FLAG1 | FLAG2 to be const
@@ -58,13 +94,17 @@ const GRAVITY: EFlag = 1 << 0;
 const FIXED: EFlag = 1 << 1;
 const PAUSE_EXEMPT: EFlag = 1 << 2;
 
+pub type Color = [f32; 4];
+
 #[derive(Default, Clone)]
 pub struct Element {
     flags: EFlag,
-    color: [f32; 4],
+    color: Color,
     mass: i8,
     id: u8,
-    decay_reaction: Option<fn(&mut World, usize)>,
+    periodic_side_effect: Option<fn(&mut World, usize)>,
+    periodic_reaction: Option<fn(&mut Tile)>,
+    state_colors: Option<fn(u8) -> &'static Color>,
 }
 
 impl Element {
@@ -74,6 +114,13 @@ impl Element {
 
     fn id(&self) -> ElementId {
         ElementId(self.id)
+    }
+
+    fn get_color(&self, special_info: u8) -> &[f32; 4] {
+        match self.state_colors {
+            Some(function) => function(special_info),
+            None => &self.color,
+        }
     }
 }
 
@@ -136,16 +183,32 @@ fn adjacent_y(position1: usize, position2: usize) -> bool {
     is_above || is_below
 }
 
-pub fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
+pub fn neighbor_count(index: usize, predicate: impl Fn(usize) -> bool) -> usize {
+    neighbors(index).filter(|&x| predicate(x)).count()
+}
+
+pub fn neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
     let x = index as i32 % WORLD_WIDTH;
     let y = index as i32 / WORLD_WIDTH;
-    iproduct!(-1i32..=1, -1i32..=1) // consider all adjacent tuples
+    iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
         .filter(|&tuple| tuple != (0, 0)) // exclude same tile
-        .map(|(dx, dy)| (x + dx, y + dy))
-        .filter(|&(x,y)|  // exclude tiles outside world bounds
-            in_bounds(x,y))
+        .map(move |(dx, dy)| (x + dx, y + dy))
+        .filter(|&(x, y)| in_bounds(x, y)) // exclude tiles outside world bounds
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
-        .for_each(|minimum| f(minimum)); // apply input function
+}
+
+pub fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
+    for neighbor_index in neighbors(index) {
+        f(neighbor_index)
+    }
+    // let x = index as i32 % WORLD_WIDTH;
+    // let y = index as i32 / WORLD_WIDTH;
+    // iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
+    //     .filter(|&tuple| tuple != (0, 0)) // exclude same tile
+    //     .map(|(dx, dy)| (x + dx, y + dy))
+    //     .filter(|&(x, y)| in_bounds(x, y)) // exclude tiles outside world bounds
+    //     .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
+    //     .for_each(|i| f(i)); // apply input function
 }
 
 #[test]
@@ -177,7 +240,7 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     motion_queue.clear();
     for i in 0..WORLD_SIZE as usize {
         if let Some(ref mut tile) = &mut world[i] {
-            if !tile.paused {
+            if !tile.paused && !tile.has_flag(FIXED) {
                 let (new_x, overflowed_x) = tile.position.x.overflowing_add(tile.velocity.x);
                 let (new_y, overflowed_y) = tile.position.y.overflowing_add(tile.velocity.y);
                 tile.position.x = new_x;
@@ -232,65 +295,6 @@ fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
 
-static WALL: Element = Element {
-    flags: FIXED,
-    color: [1.0, 1.0, 1.0, 1.0],
-    mass: 127,
-    id: 0,
-    decay_reaction: None,
-};
-
-struct WallSetup;
-impl ElementSetup for WallSetup {
-    fn register_reactions(&self, _world: &mut World) {}
-    fn get_id(&self) -> ElementId {
-        WALL.id()
-    }
-    fn build_element(&self) -> Element {
-        WALL.clone()
-    }
-}
-
-static ROCK: Element = Element {
-    flags: GRAVITY,
-    color: [0.5, 0.5, 0.5, 1.0],
-    mass: 50,
-    id: 1,
-    decay_reaction: None,
-};
-
-// TODO move to file
-struct RockSetup;
-impl ElementSetup for RockSetup {
-    fn register_reactions(&self, _world: &mut World) {}
-    fn get_id(&self) -> ElementId {
-        ROCK.id()
-    }
-    fn build_element(&self) -> Element {
-        ROCK.clone()
-    }
-}
-
-static GAS: Element = Element {
-    flags: PAUSE_EXEMPT,
-    color: [1.0, 0.5, 1.0, 1.0],
-    mass: 3,
-    id: 3,
-    decay_reaction: None,
-};
-
-static WATER: Element = Element {
-    flags: GRAVITY | PAUSE_EXEMPT,
-    color: [0.0, 0.0, 1.0, 1.0],
-    mass: 8,
-    id: 6,
-    decay_reaction: Some(|w, p| {
-        // Water "jiggles" slightly
-        let water_tile = w[p].as_mut().unwrap();
-        water_tile.velocity.x += thread_rng().gen_range(-3, 4);
-    }),
-};
-
 type CollisionSideEffect = fn(&mut World, usize, usize);
 type CollisionReaction = fn(&mut Tile, &mut Tile);
 
@@ -343,8 +347,8 @@ impl App {
             if self.turn % GRAVITY_PERIOD == 0 {
                 self.world.apply_gravity();
             }
-            if self.turn % DECAY_REACTION_PERIOD == 0 {
-                self.world.apply_decay_reactions();
+            if self.turn % REACTION_PERIOD == 0 {
+                self.world.apply_periodic_reactions();
             }
             apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;
@@ -371,14 +375,19 @@ impl Pen for ElementPen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64) {
         let x = x.trunc() as i32 / TILE_PIXELS;
         let y = y.trunc() as i32 / TILE_PIXELS;
+        let velocity = if self.element.has_flag(FIXED) {
+            Vector { x: 0, y: 0 }
+        } else {
+            Vector {
+                x: thread_rng().gen_range(-20, 21),
+                y: thread_rng().gen_range(-20, 21),
+            }
+        };
         if in_bounds(x, y) && world[point(x, y)].is_none() {
             world[point(x, y)] = Some(Tile::new(
                 ElementState::new(self.element.id()),
                 Vector { x: 0, y: 0 },
-                Vector {
-                    x: thread_rng().gen_range(-20, 21),
-                    y: thread_rng().gen_range(-20, 21),
-                },
+                velocity,
                 false,
             ))
         }
@@ -387,10 +396,21 @@ impl Pen for ElementPen {
 
 lazy_static! {
     static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
+        let default_setup = |x| {
+            Box::new(DefaultSetup::new(x))
+        };
         vec![
-            Box::new(SandSetup),
-            Box::new(RockSetup),
-            Box::new(WallSetup),
+            default_setup(&SAND),
+            default_setup(&ROCK),
+            default_setup(&WALL),
+            default_setup(&WATER),
+            default_setup(&GAS),
+            default_setup(&ASH),
+            default_setup(&METAL),
+            default_setup(&METAL_CHARGED_HEAD),
+            default_setup(&METAL_CHARGED_TAIL),
+            Box::new(ElectronSetup), // ELECTRON
+            Box::new(FireElementSetup), // FIRE
             // Todo: add the rest of the elements
         ]
     };
@@ -476,7 +496,9 @@ pub fn game_loop() {
                         Key::D3 => Some(&GAS),
                         Key::D4 => Some(&ROCK),
                         Key::D5 => Some(&WATER),
-                        // Key::D6 => Some(&WALL),
+                        Key::D6 => Some(&WALL),
+                        Key::D7 => Some(&METAL),
+                        Key::D8 => Some(&ELECTRON),
                         _ => None, // Key not recognized, do nothing
                     };
                     if let Some(element) = element {

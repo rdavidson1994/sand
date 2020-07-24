@@ -1,4 +1,4 @@
-use crate::{EFlag, Element, ElementId, ELEMENTS};
+use crate::{EFlag, Element, ElementId, SpecialElementInfo, ELEMENTS};
 use num::Bounded;
 use std::any::type_name;
 use std::convert::TryFrom;
@@ -48,7 +48,7 @@ impl Tile {
     }
 
     pub fn set_element(&mut self, element: ElementId) {
-        self.element_data = ElementData::new(ElementState::new(element));
+        self.element_data.stage(ElementState::new(element)); // = ElementData::new(ElementState::new(element));
     }
 
     pub fn get_element(&self) -> &'static Element {
@@ -60,8 +60,11 @@ impl Tile {
         self.element_data.element_id().0
     }
 
-    pub fn edit_state(&mut self, new_state: ElementState) {
-        self.element_data.stage(new_state);
+    pub fn edit_state(&mut self, element: ElementId, special_info: u8) {
+        self.element_data.stage(ElementState::new_with_special(
+            element,
+            SpecialElementInfo::new(special_info),
+        ))
     }
 
     pub fn save_state(&mut self) {
@@ -73,7 +76,9 @@ impl Tile {
     }
 
     pub fn color(&self) -> &[f32; 4] {
-        &self.get_element().color
+        &self
+            .get_element()
+            .get_color(self.element_data.special_info())
     }
 
     pub fn has_flag(&self, flag: EFlag) -> bool {
