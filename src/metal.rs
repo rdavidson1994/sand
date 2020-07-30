@@ -42,35 +42,9 @@ pub static METAL: Element = Element {
                 }
             }
         }
-        // let adjacent_heads = world.neighbor_count(i, |t| {
-        //     t.has_state(METAL.id(), CHARGED_HEAD)
-        // });
-        // if adjacent_heads == 1 || adjacent_heads == 2 {
-        //     if let Some(tile) = &mut world[i] {
-        //         tile.edit_state(METAL.id(), CHARGED_HEAD);
-        //     }
-        // }
     }),
     ..ELEMENT_DEFAULT
 };
-
-// pub static METAL_CHARGED_HEAD: Element = Element {
-//     color: [0.5, 0.5, 0.8, 1.0],
-//     mass: 10,
-//     flags: FIXED,
-//     id: 9,
-//     periodic_reaction: Some(|tile| tile.set_element(METAL_CHARGED_TAIL.id())),
-//     ..ELEMENT_DEFAULT
-// };
-//
-// pub static METAL_CHARGED_TAIL: Element = Element {
-//     color: [0.3, 0.3, 0.7, 1.0],
-//     mass: 10,
-//     flags: FIXED,
-//     id: 10,
-//     periodic_reaction: Some(|tile| tile.set_element(METAL.id())),
-//     ..ELEMENT_DEFAULT
-// };
 
 pub static ELECTRON: Element = Element {
     mass: 2,
