@@ -1,7 +1,7 @@
 use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
-use crate::{Element, GRAVITY, PAUSE_EXEMPT};
+use crate::{Element, GRAVITY, PAUSE_EXEMPT, ROCK};
 use rand::Rng;
 
 pub static LAVA: Element = Element {
@@ -10,7 +10,7 @@ pub static LAVA: Element = Element {
     mass: 50,
     id: 9,
     periodic_side_effect: Some(|world, position| {
-        let (_this, mut neighbors) = world.mutate_neighborhood(position);
+        let (this, mut neighbors) = world.mutate_neighborhood(position);
         neighbors.for_each(|tile| match tile {
             Some(_) => {
                 // Don't do anything to existing tiles
@@ -29,7 +29,11 @@ pub static LAVA: Element = Element {
                             y: rand::thread_rng().gen_range(-10, 10),
                         },
                         false,
-                    ))
+                    ));
+                    // Every time you create fire, roll to cool into rock
+                    if rand::thread_rng().gen_range(0, 30) == 0 {
+                        this.set_element(ROCK.id());
+                    }
                 }
             }
         })

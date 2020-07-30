@@ -10,7 +10,7 @@ pub const MAKES_ASH: u8 = 2;
 
 pub static ASH: Element = Element {
     flags: GRAVITY,
-    color: [0.3, 0.3, 0.3, 1.0],
+    color: [0.1, 0.1, 0.1, 1.0],
     mass: 3,
     id: 5,
     ..ELEMENT_DEFAULT
@@ -35,7 +35,7 @@ pub static FIRE: Element = Element {
                 w.unpause(j);
             }
         }
-        if rng.gen_range(0, 20) == 0 {
+        if rng.gen_range(0, 100) == 0 {
             w.unpause(i);
             let mut made_ash = false;
             if rng.gen_range(0, 3) == 0 {
