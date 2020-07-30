@@ -4,6 +4,10 @@ use crate::{
 };
 use rand::{thread_rng, Rng};
 
+#[allow(dead_code)]
+const NO_ASH: u8 = 1;
+const MAKES_ASH: u8 = 2;
+
 pub(crate) static ASH: Element = Element {
     flags: GRAVITY,
     color: [0.3, 0.3, 0.3, 1.0],
@@ -23,7 +27,7 @@ pub static FIRE: Element = Element {
             let mut did_burn = false;
             if let Some(tile) = &mut w[j] {
                 if tile.element_id() == SAND.id {
-                    tile.set_element(FIRE.id());
+                    tile.edit_state(FIRE.id(), MAKES_ASH);
                     did_burn = true;
                 }
             }
@@ -33,11 +37,16 @@ pub static FIRE: Element = Element {
         }
         if rng.gen_range(0, 20) == 0 {
             w.unpause(i);
+            let mut made_ash = false;
             if rng.gen_range(0, 3) == 0 {
                 if let Some(tile) = &mut w[i] {
-                    tile.set_element(ASH.id())
+                    if tile.special_info() == MAKES_ASH {
+                        tile.set_element(ASH.id());
+                        made_ash = true;
+                    }
                 }
-            } else {
+            }
+            if !made_ash {
                 w[i] = None;
             }
         }
