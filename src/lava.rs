@@ -12,7 +12,7 @@ pub static LAVA: Element = Element {
     mass: 50,
     id: 9,
     periodic_reaction: Some(|world, position| {
-        let (this, mut neighbors) = world.mutate_neighborhood(position);
+        let (this, mut neighbors) = world.mutate_neighbors(position);
         neighbors.for_each(|tile| match tile {
             Some(_) => {
                 // Don't do anything to existing tiles

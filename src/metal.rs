@@ -23,7 +23,7 @@ pub static METAL: Element = Element {
     }),
 
     periodic_reaction: Some(|world, i| {
-        let (this, mut neighbors) = world.mutate_neighborhood(i);
+        let (this, mut neighbors) = world.mutate_neighbors(i);
         match this.special_info() {
             CHARGED_HEAD => {
                 this.edit_state(METAL.id(), CHARGED_TAIL);

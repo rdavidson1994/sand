@@ -62,7 +62,7 @@ impl ElementSetup for FireElementSetup {
         // Fire burns sand
         world.register_collision_side_effect(&FIRE, &SAND, |world, _i_fire, i_other| {
             let mut rng = thread_rng();
-            let (other, mut neighbors) = world.mutate_neighborhood(i_other);
+            let (other, mut neighbors) = world.mutate_neighbors(i_other);
             other.set_element(FIRE.id());
             neighbors.for_each(|square| match square {
                 Some(tile) => {

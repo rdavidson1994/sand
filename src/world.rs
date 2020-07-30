@@ -14,14 +14,14 @@ pub struct World {
     collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
 }
 
-pub struct NHood<'a, T> {
+pub struct Neighborhood<'a, T> {
     before_slice: &'a mut [T],
     after_slice: &'a mut [T],
 }
 
-impl<'a, T> NHood<'a, T> {
-    fn new(before_slice: &'a mut [T], after_slice: &'a mut [T]) -> NHood<'a, T> {
-        NHood {
+impl<'a, T> Neighborhood<'a, T> {
+    fn new(before_slice: &'a mut [T], after_slice: &'a mut [T]) -> Neighborhood<'a, T> {
+        Neighborhood {
             before_slice,
             after_slice,
         }
@@ -44,10 +44,10 @@ impl<'a, T> NHood<'a, T> {
     }
 }
 
-fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, NHood<T>) {
+fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, Neighborhood<T>) {
     let (before, center_and_after) = slice.split_at_mut(index);
     let (center, after) = center_and_after.split_at_mut(1);
-    (&mut center[0], NHood::new(before, after))
+    (&mut center[0], Neighborhood::new(before, after))
 }
 
 trait PairwiseMutate {
@@ -303,7 +303,7 @@ impl World {
 
     // returns (center, neighbors)
     // panics if self[index] is None
-    pub fn mutate_neighborhood(&mut self, index: usize) -> (&mut Tile, NHood<Option<Tile>>) {
+    pub fn mutate_neighbors(&mut self, index: usize) -> (&mut Tile, Neighborhood<Option<Tile>>) {
         let (center, nhood) = mutate_neighborhood(&mut *self.grid, index);
         match center.as_mut() {
             Some(mut_ref_tile) => (mut_ref_tile, nhood),
