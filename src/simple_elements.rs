@@ -1,5 +1,5 @@
-use crate::{Element, FIXED, GRAVITY, NO_FLAGS, PAUSE_EXEMPT};
-use rand::{self, Rng};
+use crate::element::{Element, GRAVITY, NO_FLAGS, PAUSE_EXEMPT};
+use crate::FIXED;
 
 pub static ELEMENT_DEFAULT: Element = Element {
     flags: NO_FLAGS,

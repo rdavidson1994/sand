@@ -1,10 +1,11 @@
-use crate::{EFlag, Element, ElementId, SpecialElementInfo, ELEMENTS};
 use num::Bounded;
 use std::any::type_name;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
 mod element_state;
+use crate::element::{EFlag, Element, ElementId, SpecialElementInfo};
+use crate::ELEMENTS;
 pub use element_state::*;
 
 const BASE_RESTITUTION: f64 = 0.5;

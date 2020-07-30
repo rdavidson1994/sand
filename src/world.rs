@@ -1,7 +1,8 @@
+use crate::element::{Element, FIXED, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::{
-    above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, Element, FIXED,
-    GRAVITY, PAUSE_EXEMPT, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
+    above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
+    WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
 use std::ops::{Index, IndexMut};
 
@@ -139,8 +140,8 @@ impl World {
                         self.unpause(destination);
                     }
                 }
-                self.trigger_collision_side_effects(source, destination);
                 self.trigger_collision_reactions(source, destination);
+                self.trigger_collision_side_effects(source, destination);
             }
         }
     }

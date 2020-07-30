@@ -1,10 +1,13 @@
+use crate::element::NO_FLAGS;
 use crate::world::World;
-use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED, GAS, NO_FLAGS};
+use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
 
 const NEUTRAL: u8 = 1;
 const NEUTRAL_COLOR: Color = [0.2, 0.2, 0.25, 1.0];
+
 const CHARGED_HEAD: u8 = 2;
 const CHARGED_HEAD_COLOR: Color = [0.5, 0.5, 0.8, 1.0];
+
 const CHARGED_TAIL: u8 = 3;
 const CHARGED_TAIL_COLOR: Color = [0.3, 0.3, 0.7, 1.0];
 
@@ -57,9 +60,11 @@ pub static ELECTRON: Element = Element {
 pub struct ElectronSetup;
 impl ElementSetup for ElectronSetup {
     fn register_reactions(&self, world: &mut World) {
-        world.register_collision_reaction(&ELECTRON, &METAL, |elec_tile, metal_tile| {
-            metal_tile.edit_state(METAL.id(), CHARGED_HEAD);
-            elec_tile.set_element(GAS.id());
+        world.register_collision_side_effect(&ELECTRON, &METAL, |world, i_elec, i_metal| {
+            if let Some(metal_tile) = &mut world[i_metal] {
+                metal_tile.edit_state(METAL.id(), CHARGED_HEAD);
+            }
+            world[i_elec] = None;
         });
     }
 

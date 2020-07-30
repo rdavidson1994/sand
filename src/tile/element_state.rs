@@ -11,7 +11,8 @@
 //     ChargedHead,
 //     ChargedTail,
 // }
-use crate::{ElementId, SpecialElementInfo};
+
+use crate::element::{ElementId, SpecialElementInfo};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ElementState {

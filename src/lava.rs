@@ -1,8 +1,9 @@
+use crate::element::{GRAVITY, PAUSE_EXEMPT};
 use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
-use crate::{Element, ElementId, ElementSetup, GRAVITY, METAL, PAUSE_EXEMPT, ROCK};
+use crate::{Element, ElementId, ElementSetup, METAL, ROCK};
 use rand::Rng;
 
 pub static LAVA: Element = Element {

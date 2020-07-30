@@ -1,7 +1,9 @@
-use crate::{
-    neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World,
-    ELEMENT_DEFAULT, GRAVITY, NO_FLAGS, SAND, WATER,
-};
+use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS};
+use crate::neighbors;
+use crate::simple_elements::{ELEMENT_DEFAULT, SAND};
+use crate::tile::{ElementState, Tile, Vector};
+use crate::water::WATER;
+use crate::world::World;
 use rand::{thread_rng, Rng};
 
 #[allow(dead_code)]
@@ -94,6 +96,6 @@ impl ElementSetup for FireElementSetup {
     }
 
     fn get_id(&self) -> ElementId {
-        ElementId(FIRE.id)
+        FIRE.id()
     }
 }

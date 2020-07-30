@@ -1,5 +1,5 @@
+use crate::element::{Element, GRAVITY, PAUSE_EXEMPT};
 use crate::simple_elements::ELEMENT_DEFAULT;
-use crate::{Element, GRAVITY, PAUSE_EXEMPT};
 use rand::Rng;
 
 pub static WATER: Element = Element {

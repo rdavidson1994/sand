@@ -8,6 +8,7 @@ mod util;
 mod water;
 mod world;
 
+use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
@@ -15,14 +16,13 @@ use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
 use crate::world::World;
-
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
 
 lazy_static! {
-    static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
+    pub static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
         let default_setup = |x| Box::new(DefaultSetup::new(x));
         vec![
             default_setup(&SAND),
@@ -40,7 +40,7 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref ELEMENTS: Vec<Element> = {
+    pub static ref ELEMENTS: Vec<Element> = {
         let mut out = vec![];
         for s in SETUPS.iter().sorted_by_key(|x| x.get_id().0) {
             out.push(s.build_element());
@@ -77,98 +77,6 @@ use piston::input::{
     UpdateArgs, UpdateEvent,
 };
 use piston::window::WindowSettings;
-use std::num::NonZeroU8;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ElementId(u8);
-impl ElementId {
-    fn get_element(self) -> &'static Element {
-        &ELEMENTS[self.0 as usize]
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct SpecialElementInfo(NonZeroU8);
-impl SpecialElementInfo {
-    pub fn none() -> Self {
-        Self::new(1)
-    }
-
-    pub fn new(byte: u8) -> Self {
-        SpecialElementInfo(NonZeroU8::new(byte).unwrap())
-    }
-
-    pub fn as_u8(self) -> u8 {
-        self.0.get() as u8
-    }
-}
-
-pub trait ElementSetup: Sync {
-    fn register_reactions(&self, world: &mut World);
-    fn build_element(&self) -> Element;
-    fn get_id(&self) -> ElementId;
-}
-
-pub struct DefaultSetup {
-    element: &'static Element,
-}
-
-impl DefaultSetup {
-    pub fn new(element: &'static Element) -> Self {
-        DefaultSetup { element }
-    }
-}
-
-impl ElementSetup for DefaultSetup {
-    fn register_reactions(&self, _world: &mut World) {
-        // Do nothing
-    }
-
-    fn build_element(&self) -> Element {
-        self.element.clone()
-    }
-
-    fn get_id(&self) -> ElementId {
-        self.element.id()
-    }
-}
-
-// Can't use bitflags crate at the moment, since we need FLAG1 | FLAG2 to be const
-type EFlag = u8;
-const NO_FLAGS: EFlag = 0;
-const GRAVITY: EFlag = 1 << 0;
-const FIXED: EFlag = 1 << 1;
-const PAUSE_EXEMPT: EFlag = 1 << 2;
-
-pub type Color = [f32; 4];
-
-#[derive(Default, Clone)]
-pub struct Element {
-    flags: EFlag,
-    color: Color,
-    mass: i8,
-    id: u8,
-    periodic_side_effect: Option<fn(&mut World, usize)>,
-    periodic_reaction: Option<fn(&mut Tile)>,
-    state_colors: Option<fn(u8) -> &'static Color>,
-}
-
-impl Element {
-    fn has_flag(&self, flag: EFlag) -> bool {
-        flag & self.flags != 0
-    }
-
-    fn id(&self) -> ElementId {
-        ElementId(self.id)
-    }
-
-    fn get_color(&self, special_info: u8) -> &[f32; 4] {
-        match self.state_colors {
-            Some(function) => function(special_info),
-            None => &self.color,
-        }
-    }
-}
 
 fn in_bounds(x: i32, y: i32) -> bool {
     x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT
