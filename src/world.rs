@@ -15,7 +15,7 @@ pub struct World {
 
 pub struct NHood<'a, T> {
     before_slice: &'a mut [T],
-    after_slice: &'a mut[T],
+    after_slice: &'a mut [T],
 }
 
 impl<'a, T> NHood<'a, T> {
@@ -26,7 +26,7 @@ impl<'a, T> NHood<'a, T> {
         }
     }
 
-    fn for_each(&mut self, action: impl FnMut(&mut T)) {
+    pub fn for_each(&mut self, action: impl FnMut(&mut T)) {
         self.for_each_impl(action, WORLD_WIDTH as usize)
     }
 
@@ -37,20 +37,17 @@ impl<'a, T> NHood<'a, T> {
         action(&mut self.before_slice[i - width + 1]);
         action(&mut self.before_slice[i - 1]);
         action(&mut self.after_slice[0]);
-        action(&mut self.after_slice[width-2]);
-        action(&mut self.after_slice[width-1]);
+        action(&mut self.after_slice[width - 2]);
+        action(&mut self.after_slice[width - 1]);
         action(&mut self.after_slice[width]);
     }
 }
 
-
-fn mutate_neighborhood<T>(slice: &mut [T], index: usize, width: usize) -> (&mut T, NHood<T>) {
+fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, NHood<T>) {
     let (before, center_and_after) = slice.split_at_mut(index);
     let (center, after) = center_and_after.split_at_mut(1);
     (&mut center[0], NHood::new(before, after))
 }
-
-
 
 trait PairwiseMutate {
     type T;
@@ -307,8 +304,13 @@ impl World {
     }
 
     // returns (center, neighbors)
-    fn mutate_neighborhood(&mut self, index: usize) -> (&mut Option<Tile>, NHood<Option<Tile>>) {
-        mutate_neighborhood(&mut *self.grid, index, WORLD_WIDTH as usize)
+    // panics if self[index] is None
+    pub fn mutate_neighborhood(&mut self, index: usize) -> (&mut Tile, NHood<Option<Tile>>) {
+        let (center, nhood) = mutate_neighborhood(&mut *self.grid, index);
+        match center.as_mut() {
+            Some(mut_ref_tile) => (mut_ref_tile, nhood),
+            None => panic!("Attempted to mutate the neighbors of an empty square."),
+        }
     }
 
     pub fn unpause(&mut self, initial_position: usize) {
@@ -333,25 +335,31 @@ impl World {
 #[test]
 pub fn mutate_neighborhood_test() {
     let mut data = [
-        0,0,0,0,0,
-        0,0,0,0,0,
-        0,0,0,0,0,
-        0,0,0,0,0,
-        0,0,0,0,0,
+        0, 0, 0, 0, 0, // Row 0
+        0, 0, 0, 0, 0, // Row 1
+        0, 0, 0, 0, 0, // Row 2
+        0, 0, 0, 0, 0, // Row 3
+        0, 0, 0, 0, 0, // Row 4
     ];
-    let (center, mut neighbors) = mutate_neighborhood(&mut data[..], 2+5*2, 5);
+    let (center, mut neighbors) = mutate_neighborhood(&mut data[..], 2 + 5 * 2);
     *center += 9;
 
     let mut index = 1;
-    neighbors.for_each_impl(|val| {
-        *val += index;
-        index += 1;
-    }, 5);
-    assert_eq!(data, [
-        0,0,0,0,0,
-        0,1,2,3,0,
-        0,4,9,5,0,
-        0,6,7,8,0,
-        0,0,0,0,0,
-    ]);
+    neighbors.for_each_impl(
+        |val| {
+            *val += index;
+            index += 1;
+        },
+        5,
+    );
+    assert_eq!(
+        data,
+        [
+            0, 0, 0, 0, 0, // Row 0
+            0, 1, 2, 3, 0, // Row 1
+            0, 4, 9, 5, 0, // Row 2
+            0, 6, 7, 8, 0, // Row 3
+            0, 0, 0, 0, 0, // Row 4
+        ]
+    );
 }

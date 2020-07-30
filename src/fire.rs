@@ -49,10 +49,30 @@ pub struct FireElementSetup;
 impl ElementSetup for FireElementSetup {
     fn register_reactions(&self, world: &mut World) {
         // Fire burns sand
-        world.register_collision_reaction(&FIRE, &SAND, |_fire_tile, sand_tile| {
-            sand_tile.set_element(FIRE.id());
+        world.register_collision_side_effect(&FIRE, &SAND, |world, i_fire, i_other| {
+            let mut rng = thread_rng();
+            let (other, mut neighbors) = world.mutate_neighborhood(i_other);
+            other.set_element(FIRE.id());
+            neighbors.for_each(|square| match square {
+                Some(tile) => {
+                    tile.paused = false;
+                }
+                None => {
+                    *square = Some(Tile::new(
+                        ElementState::default(FIRE.id()),
+                        Vector {
+                            x: rng.gen_range(-126, 127),
+                            y: rng.gen_range(-126, 127),
+                        },
+                        Vector {
+                            x: rng.gen_range(-10, 10),
+                            y: rng.gen_range(-10, 10),
+                        },
+                        false,
+                    ));
+                }
+            });
         });
-        world.register_collision_side_effect(&FIRE, &SAND, burn);
 
         // Water extinguishes fire
         world.register_collision_reaction(&FIRE, &WATER, |fire_tile, _water_tile| {

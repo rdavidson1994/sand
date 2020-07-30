@@ -6,7 +6,7 @@ mod util;
 mod world;
 
 use crate::fire::{FireElementSetup, ASH, FIRE};
-use crate::metal::{ElectronSetup, ELECTRON, METAL, METAL_CHARGED_HEAD, METAL_CHARGED_TAIL};
+use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
@@ -15,8 +15,8 @@ use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
-const WORLD_WIDTH: i32 = 200;
-const WORLD_HEIGHT: i32 = 200;
+const WORLD_WIDTH: i32 = 250;
+const WORLD_HEIGHT: i32 = 250;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
@@ -416,8 +416,6 @@ lazy_static! {
             default_setup(&GAS),
             default_setup(&ASH),
             default_setup(&METAL),
-            default_setup(&METAL_CHARGED_HEAD),
-            default_setup(&METAL_CHARGED_TAIL),
             Box::new(ElectronSetup), // ELECTRON
             Box::new(FireElementSetup), // FIRE
             // Todo: add the rest of the elements
@@ -437,7 +435,6 @@ lazy_static! {
         out
     };
 }
-
 
 pub fn game_loop() {
     lazy_static_crate::initialize(&SETUPS);

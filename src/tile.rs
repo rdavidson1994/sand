@@ -60,6 +60,10 @@ impl Tile {
         self.element_data.element_id().0
     }
 
+    pub fn special_info(&self) -> u8 {
+        self.get_state().special_info.as_u8()
+    }
+
     pub fn edit_state(&mut self, element_id: ElementId, special_info: u8) {
         self.element_data.stage(ElementState {
             element_id,
