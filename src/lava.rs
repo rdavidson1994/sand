@@ -1,7 +1,8 @@
 use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
-use crate::{Element, GRAVITY, PAUSE_EXEMPT, ROCK};
+use crate::world::World;
+use crate::{Element, ElementId, ElementSetup, GRAVITY, METAL, PAUSE_EXEMPT, ROCK};
 use rand::Rng;
 
 pub static LAVA: Element = Element {
@@ -40,3 +41,21 @@ pub static LAVA: Element = Element {
     }),
     ..ELEMENT_DEFAULT
 };
+
+pub struct LavaSetup;
+impl ElementSetup for LavaSetup {
+    fn register_reactions(&self, world: &mut World) {
+        // Lava melts metal
+        world.register_collision_reaction(&LAVA, &METAL, |_lava, metal| {
+            metal.set_element(LAVA.id());
+        })
+    }
+
+    fn build_element(&self) -> Element {
+        LAVA.clone()
+    }
+
+    fn get_id(&self) -> ElementId {
+        LAVA.id()
+    }
+}

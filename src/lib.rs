@@ -7,7 +7,7 @@ mod util;
 mod world;
 
 use crate::fire::{FireElementSetup, ASH, FIRE};
-use crate::lava::LAVA;
+use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
 use crate::tile::{ElementState, Tile, Vector};
@@ -382,7 +382,7 @@ lazy_static! {
             default_setup(&GAS),
             default_setup(&ASH),
             default_setup(&METAL),
-            default_setup(&LAVA),
+            Box::new(LavaSetup),
             Box::new(ElectronSetup), // ELECTRON
             Box::new(FireElementSetup), // FIRE
             // Todo: add the rest of the elements
