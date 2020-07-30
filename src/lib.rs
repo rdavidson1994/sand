@@ -206,42 +206,6 @@ pub fn neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
 }
 
-pub fn for_neighbors(index: usize, mut f: impl FnMut(usize)) {
-    for neighbor_index in neighbors(index) {
-        f(neighbor_index)
-    }
-    // let x = index as i32 % WORLD_WIDTH;
-    // let y = index as i32 / WORLD_WIDTH;
-    // iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
-    //     .filter(|&tuple| tuple != (0, 0)) // exclude same tile
-    //     .map(|(dx, dy)| (x + dx, y + dy))
-    //     .filter(|&(x, y)| in_bounds(x, y)) // exclude tiles outside world bounds
-    //     .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
-    //     .for_each(|i| f(i)); // apply input function
-}
-
-#[test]
-fn for_neighbors_test() {
-    let mut results = std::collections::HashSet::<usize>::new();
-    for_neighbors(point(5, 5), |i| {
-        assert!(results.insert(i));
-    });
-    assert!(results.contains(&point(4, 4)));
-    assert!(results.contains(&point(4, 5)));
-    assert!(results.contains(&point(4, 6)));
-    assert!(results.contains(&point(5, 4)));
-    // The center (5,5), is not included
-    assert!(results.contains(&point(5, 6)));
-    assert!(results.contains(&point(6, 4)));
-    assert!(results.contains(&point(6, 5)));
-    assert!(results.contains(&point(6, 6)));
-    let mut count = 0;
-    for _ in results.drain() {
-        count += 1
-    }
-    assert_eq!(count, 8);
-}
-
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
     let mut needs_update = false;
     // This makes more sense at the end, but borrowck didn't like it
