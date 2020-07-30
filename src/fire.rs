@@ -1,5 +1,5 @@
 use crate::{
-    for_neighbors, neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World,
+    neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World,
     ELEMENT_DEFAULT, GRAVITY, NO_FLAGS, SAND, WATER,
 };
 use rand::{thread_rng, Rng};
@@ -49,7 +49,7 @@ pub struct FireElementSetup;
 impl ElementSetup for FireElementSetup {
     fn register_reactions(&self, world: &mut World) {
         // Fire burns sand
-        world.register_collision_side_effect(&FIRE, &SAND, |world, i_fire, i_other| {
+        world.register_collision_side_effect(&FIRE, &SAND, |world, _i_fire, i_other| {
             let mut rng = thread_rng();
             let (other, mut neighbors) = world.mutate_neighborhood(i_other);
             other.set_element(FIRE.id());
@@ -87,27 +87,4 @@ impl ElementSetup for FireElementSetup {
     fn get_id(&self) -> ElementId {
         ElementId(FIRE.id)
     }
-}
-
-fn burn(world: &mut World, _fire_loc: usize, other_loc: usize) {
-    let mut rng = thread_rng();
-    for_neighbors(other_loc, |position| match &world[position] {
-        Some(_) => {
-            world[position].as_mut().unwrap().paused = false;
-        }
-        None => {
-            world[position] = Some(Tile::new(
-                ElementState::default(FIRE.id()),
-                Vector {
-                    x: rng.gen_range(-126, 127),
-                    y: rng.gen_range(-126, 127),
-                },
-                Vector {
-                    x: rng.gen_range(-10, 10),
-                    y: rng.gen_range(-10, 10),
-                },
-                false,
-            ));
-        }
-    });
 }
