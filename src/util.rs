@@ -7,7 +7,7 @@ use rand::{self, Rng};
 #[allow(dead_code)]
 fn populate_world_bullet(world: &mut World) {
     world[point(10, 10)] = Some(Tile::new(
-        ElementState::new(GAS.id()),
+        ElementState::default(GAS.id()),
         Vector { x: 0, y: 0 },
         Vector { x: 127, y: 0 },
         false,
@@ -18,7 +18,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
     for x in 1..WORLD_WIDTH - 1 {
         for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 1 {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::new(SAND.id()),
+                ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
                 true,
@@ -29,7 +29,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
     for x in 20..WORLD_WIDTH - 20 {
         for y in WORLD_HEIGHT - 65..WORLD_HEIGHT - 45 {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::new(SAND.id()),
+                ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
                 false,
@@ -44,7 +44,7 @@ pub fn populate_world_pileup(world: &mut World) {
     for x in 5..10 {
         for y in 5..10 {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::new(GAS.id()),
+                ElementState::default(GAS.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
                 false,
@@ -55,7 +55,7 @@ pub fn populate_world_pileup(world: &mut World) {
     for x in 55..60 {
         for y in 5..10 {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::new(GAS.id()),
+                ElementState::default(GAS.id()),
                 Vector {
                     x: 0, //rng.gen_range(-50,50),
                     y: 0, //rng.gen_range(-50,50),
@@ -72,12 +72,13 @@ pub fn populate_world_pileup(world: &mut World) {
 
 pub fn create_walls(world: &mut World) {
     for i in 0..WORLD_WIDTH {
-        world[point(i, 0)] = Some(Tile::stationary(ElementState::new(WALL.id())));
-        world[point(i, WORLD_HEIGHT - 1)] = Some(Tile::stationary(ElementState::new(WALL.id())));
+        world[point(i, 0)] = Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(i, WORLD_HEIGHT - 1)] =
+            Some(Tile::stationary(ElementState::default(WALL.id())));
     }
     for i in 0..WORLD_HEIGHT {
-        world[point(0, i)] = Some(Tile::stationary(ElementState::new(WALL.id())));
-        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::new(WALL.id())));
+        world[point(0, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
     }
 }
 
@@ -96,7 +97,7 @@ fn populate_world(world: &mut World) {
             &FIRE
         };
         world[point(15 + x_offset, 5 + y_offset)] = Some(Tile::new(
-            ElementState::new(element.id()),
+            ElementState::default(element.id()),
             Vector { x: 0, y: 0 },
             Vector {
                 x: rng.gen_range(-1, 1),

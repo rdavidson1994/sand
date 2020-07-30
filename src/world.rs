@@ -1,7 +1,7 @@
-use crate::tile::Tile;
+use crate::tile::{ElementState, Tile};
 use crate::{
-    above, adjacent_x, CollisionReaction, CollisionSideEffect, Element, FIXED, GRAVITY,
-    PAUSE_EXEMPT, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
+    above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, Element, FIXED,
+    GRAVITY, PAUSE_EXEMPT, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
 use std::ops::{Index, IndexMut};
 
@@ -12,6 +12,45 @@ pub struct World {
     collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
     collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
 }
+
+pub struct NHood<'a, T> {
+    before_slice: &'a mut [T],
+    after_slice: &'a mut[T],
+}
+
+impl<'a, T> NHood<'a, T> {
+    fn new(before_slice: &'a mut [T], after_slice: &'a mut [T]) -> NHood<'a, T> {
+        NHood {
+            before_slice,
+            after_slice,
+        }
+    }
+
+    fn for_each(&mut self, action: impl FnMut(&mut T)) {
+        self.for_each_impl(action, WORLD_WIDTH as usize)
+    }
+
+    fn for_each_impl(&mut self, mut action: impl FnMut(&mut T), width: usize) {
+        let i = self.before_slice.len();
+        action(&mut self.before_slice[i - width - 1]);
+        action(&mut self.before_slice[i - width]);
+        action(&mut self.before_slice[i - width + 1]);
+        action(&mut self.before_slice[i - 1]);
+        action(&mut self.after_slice[0]);
+        action(&mut self.after_slice[width-2]);
+        action(&mut self.after_slice[width-1]);
+        action(&mut self.after_slice[width]);
+    }
+}
+
+
+fn mutate_neighborhood<T>(slice: &mut [T], index: usize, width: usize) -> (&mut T, NHood<T>) {
+    let (before, center_and_after) = slice.split_at_mut(index);
+    let (center, after) = center_and_after.split_at_mut(1);
+    (&mut center[0], NHood::new(before, after))
+}
+
+
 
 trait PairwiseMutate {
     type T;
@@ -60,6 +99,17 @@ impl World {
 
     pub fn swap(&mut self, i: usize, j: usize) {
         self.grid.swap(i, j);
+    }
+
+    pub fn neighbor_count(&self, i: usize, predicate: impl Fn(&Tile) -> bool) -> usize {
+        neighbor_count(i, |j| match &self[j] {
+            None => false,
+            Some(tile) => predicate(tile),
+        })
+    }
+
+    pub fn state_at(&self, i: usize) -> Option<&ElementState> {
+        self[i].as_ref().map(|x| x.get_state())
     }
 
     pub fn move_particle(&mut self, source: usize, destination: usize) {
@@ -256,6 +306,11 @@ impl World {
         self.grid.mutate_pair(first, second)
     }
 
+    // returns (center, neighbors)
+    fn mutate_neighborhood(&mut self, index: usize) -> (&mut Option<Tile>, NHood<Option<Tile>>) {
+        mutate_neighborhood(&mut *self.grid, index, WORLD_WIDTH as usize)
+    }
+
     pub fn unpause(&mut self, initial_position: usize) {
         let mut current_position = initial_position;
         loop {
@@ -273,4 +328,30 @@ impl World {
             break;
         }
     }
+}
+
+#[test]
+pub fn mutate_neighborhood_test() {
+    let mut data = [
+        0,0,0,0,0,
+        0,0,0,0,0,
+        0,0,0,0,0,
+        0,0,0,0,0,
+        0,0,0,0,0,
+    ];
+    let (center, mut neighbors) = mutate_neighborhood(&mut data[..], 2+5*2, 5);
+    *center += 9;
+
+    let mut index = 1;
+    neighbors.for_each_impl(|val| {
+        *val += index;
+        index += 1;
+    }, 5);
+    assert_eq!(data, [
+        0,0,0,0,0,
+        0,1,2,3,0,
+        0,4,9,5,0,
+        0,6,7,8,0,
+        0,0,0,0,0,
+    ]);
 }

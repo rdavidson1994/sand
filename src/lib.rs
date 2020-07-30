@@ -14,7 +14,7 @@ use crate::world::World;
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
@@ -42,18 +42,27 @@ use piston::input::{
 use piston::window::WindowSettings;
 use std::num::NonZeroU8;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ElementId(u8);
+impl ElementId {
+    fn get_element(self) -> &'static Element {
+        &ELEMENTS[self.0 as usize]
+    }
+}
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct SpecialElementInfo(NonZeroU8);
 impl SpecialElementInfo {
-    fn none() -> Self {
+    pub fn none() -> Self {
         Self::new(1)
     }
 
-    fn new(byte: u8) -> Self {
+    pub fn new(byte: u8) -> Self {
         SpecialElementInfo(NonZeroU8::new(byte).unwrap())
+    }
+
+    pub fn as_u8(self) -> u8 {
+        self.0.get() as u8
     }
 }
 
@@ -385,7 +394,7 @@ impl Pen for ElementPen {
         };
         if in_bounds(x, y) && world[point(x, y)].is_none() {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::new(self.element.id()),
+                ElementState::default(self.element.id()),
                 Vector { x: 0, y: 0 },
                 velocity,
                 false,
@@ -423,11 +432,12 @@ lazy_static! {
             out.push(s.build_element());
         }
         for (i, elem) in out.iter().enumerate() {
-            //assert_eq!(i, elem.id as usize);
+            assert_eq!(i, elem.id as usize);
         }
         out
-   };
+    };
 }
+
 
 pub fn game_loop() {
     lazy_static_crate::initialize(&SETUPS);

@@ -1,5 +1,5 @@
 use crate::{
-    for_neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World,
+    for_neighbors, neighbors, Element, ElementId, ElementSetup, ElementState, Tile, Vector, World,
     ELEMENT_DEFAULT, GRAVITY, NO_FLAGS, SAND, WATER,
 };
 use rand::{thread_rng, Rng};
@@ -19,7 +19,7 @@ pub static FIRE: Element = Element {
     id: 4,
     periodic_side_effect: Some(|w, i| {
         let mut rng = thread_rng();
-        for_neighbors(i, |j| {
+        for j in neighbors(i) {
             let mut did_burn = false;
             if let Some(tile) = &mut w[j] {
                 if tile.element_id() == SAND.id {
@@ -30,7 +30,7 @@ pub static FIRE: Element = Element {
             if did_burn {
                 w.unpause(j);
             }
-        });
+        }
         if rng.gen_range(0, 20) == 0 {
             w.unpause(i);
             if rng.gen_range(0, 3) == 0 {
@@ -77,7 +77,7 @@ fn burn(world: &mut World, _fire_loc: usize, other_loc: usize) {
         }
         None => {
             world[position] = Some(Tile::new(
-                ElementState::new(FIRE.id()),
+                ElementState::default(FIRE.id()),
                 Vector {
                     x: rng.gen_range(-126, 127),
                     y: rng.gen_range(-126, 127),

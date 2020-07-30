@@ -1,8 +1,13 @@
+
 use crate::world::World;
 use crate::{
-    for_neighbors, neighbors, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED, GAS,
-    NO_FLAGS,
+    Element, ElementId, ElementSetup, neighbor_count,
+    ELEMENT_DEFAULT, FIXED, GAS, NO_FLAGS,
 };
+
+const NEUTRAL: u8 = 1;
+const CHARGED_HEAD: u8 = 2;
+const CHARGED_TAIL: u8 = 3;
 
 pub static METAL: Element = Element {
     mass: 10,
@@ -10,22 +15,13 @@ pub static METAL: Element = Element {
     id: 7,
     color: [0.2, 0.2, 0.25, 1.0],
     periodic_side_effect: Some(|world, i| {
-        let mut head_neighbor_count = 0;
-        for j in neighbors(i) {
-            if let Some(tile) = &world[j] {
-                if tile.get_element().id() == METAL_CHARGED_HEAD.id() {
-                    head_neighbor_count += 1;
-                }
+        let adjacent_heads = world.neighbor_count(i, |t| {
+            t.has_state(METAL.id(), CHARGED_HEAD)
+        });
+        if adjacent_heads == 1 || adjacent_heads == 2 {
+            if let Some(tile) = &mut world[i] {
+                tile.edit_state(METAL.id(), CHARGED_HEAD);
             }
-        }
-        if head_neighbor_count > 0 {
-            println!("{}", head_neighbor_count);
-        }
-        if head_neighbor_count == 1 || head_neighbor_count == 2 {
-            world[i]
-                .as_mut()
-                .unwrap()
-                .set_element(METAL_CHARGED_HEAD.id());
         }
     }),
     ..ELEMENT_DEFAULT
@@ -61,7 +57,7 @@ pub struct ElectronSetup;
 impl ElementSetup for ElectronSetup {
     fn register_reactions(&self, world: &mut World) {
         world.register_collision_reaction(&ELECTRON, &METAL, |elec_tile, metal_tile| {
-            metal_tile.set_element(METAL_CHARGED_HEAD.id());
+            metal_tile.edit_state(METAL.id(), CHARGED_HEAD);
             elec_tile.set_element(GAS.id());
         });
     }

@@ -48,7 +48,7 @@ impl Tile {
     }
 
     pub fn set_element(&mut self, element: ElementId) {
-        self.element_data.stage(ElementState::new(element)); // = ElementData::new(ElementState::new(element));
+        self.element_data.stage(ElementState::default(element)); // = ElementData::new(ElementState::new(element));
     }
 
     pub fn get_element(&self) -> &'static Element {
@@ -60,11 +60,15 @@ impl Tile {
         self.element_data.element_id().0
     }
 
-    pub fn edit_state(&mut self, element: ElementId, special_info: u8) {
-        self.element_data.stage(ElementState::new_with_special(
-            element,
-            SpecialElementInfo::new(special_info),
-        ))
+    pub fn edit_state(&mut self, element_id: ElementId, special_info: u8) {
+        self.element_data.stage(ElementState {
+            element_id,
+            special_info: SpecialElementInfo::new(special_info),
+        });
+    }
+
+    pub fn has_state(&self, element_id: ElementId, special_info: u8) -> bool {
+        *self.get_state() == ElementState::new(element_id, special_info)
     }
 
     pub fn save_state(&mut self) {
@@ -76,9 +80,11 @@ impl Tile {
     }
 
     pub fn color(&self) -> &[f32; 4] {
-        &self
+        let state = self.get_state();
+        state
+            .element_id
             .get_element()
-            .get_color(self.element_data.special_info())
+            .get_color(state.special_info.as_u8())
     }
 
     pub fn has_flag(&self, flag: EFlag) -> bool {
@@ -131,27 +137,27 @@ fn elastic_collide(v1: i8, v2: i8, m1: i8, m2: i8) -> (i8, i8) {
     )
 }
 
-fn clamp_convert<T, V>(t: T) -> V
+fn clamp_convert<Source, Target>(t: Source) -> Target
 where
-    T: PartialOrd + Copy + Display,
-    V: TryFrom<T> + Bounded + Into<T> + Display,
+    Source: PartialOrd + Copy + Display,
+    Target: TryFrom<Source> + Bounded + Into<Source> + Display,
 {
-    if let Ok(v) = V::try_from(t) {
+    if let Ok(v) = Target::try_from(t) {
         v
-    } else if t > V::max_value().into() {
-        V::max_value()
-    } else if t < V::min_value().into() {
-        V::min_value()
+    } else if t > Target::max_value().into() {
+        Target::max_value()
+    } else if t < Target::min_value().into() {
+        Target::min_value()
     } else {
         panic!(
-            "Conversion of {input} from {T} to {V} failed,\
-             even though {input} is between {V}::max_value()=={v_max}\
-             and {V}::min_value()=={v_min}",
+            "Conversion of {input} from {Source} to {Target} failed,\
+             even though {input} is between {Target}::max_value()=={v_max}\
+             and {Target}::min_value()=={v_min}",
             input = t,
-            T = type_name::<T>(),
-            V = type_name::<V>(),
-            v_max = V::max_value(),
-            v_min = V::min_value(),
+            Source = type_name::<Source>(),
+            Target = type_name::<Target>(),
+            v_max = Target::max_value(),
+            v_min = Target::min_value(),
         )
     }
 }

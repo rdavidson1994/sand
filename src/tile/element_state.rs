@@ -12,29 +12,25 @@
 //     ChargedTail,
 // }
 use crate::{ElementId, SpecialElementInfo};
-use std::num::NonZeroU8;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ElementState {
-    element_id: ElementId,
-    special_info: SpecialElementInfo,
+    pub element_id: ElementId,
+    pub special_info: SpecialElementInfo,
 }
 
 impl ElementState {
-    pub fn new(element_id: ElementId) -> ElementState {
+    pub fn default(element_id: ElementId) -> ElementState {
         ElementState {
             element_id,
-            special_info: SpecialElementInfo(NonZeroU8::new(1).unwrap()),
+            special_info: SpecialElementInfo::none(),
         }
     }
 
-    pub fn new_with_special(
-        element_id: ElementId,
-        special_info: SpecialElementInfo,
-    ) -> ElementState {
+    pub fn new(element_id: ElementId, special_info: u8) -> ElementState {
         ElementState {
             element_id,
-            special_info,
+            special_info: SpecialElementInfo::new(special_info),
         }
     }
 }
@@ -55,10 +51,6 @@ impl ElementData {
 
     pub fn element_id(&self) -> ElementId {
         self.current.element_id
-    }
-
-    pub fn special_info(&self) -> u8 {
-        self.current.special_info.0.get()
     }
 
     #[allow(dead_code)]

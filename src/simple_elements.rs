@@ -1,6 +1,5 @@
-use crate::{Element, ElementId, ElementSetup, World, FIXED, GRAVITY, NO_FLAGS, PAUSE_EXEMPT};
+use crate::{Element, FIXED, GRAVITY, NO_FLAGS, PAUSE_EXEMPT};
 use rand::{self, Rng};
-use std::collections::HashMap;
 
 pub static ELEMENT_DEFAULT: Element = Element {
     flags: NO_FLAGS,
