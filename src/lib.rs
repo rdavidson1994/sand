@@ -1,4 +1,5 @@
 mod fire;
+mod lava;
 mod metal;
 mod simple_elements;
 mod tile;
@@ -7,7 +8,7 @@ mod world;
 
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
-use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
+use crate::simple_elements::{ELEMENT_DEFAULT, GAS, LAVA, ROCK, SAND, WALL, WATER};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
 
@@ -380,6 +381,7 @@ lazy_static! {
             default_setup(&GAS),
             default_setup(&ASH),
             default_setup(&METAL),
+            default_setup(&LAVA),
             Box::new(ElectronSetup), // ELECTRON
             Box::new(FireElementSetup), // FIRE
             // Todo: add the rest of the elements
@@ -470,6 +472,7 @@ pub fn game_loop() {
                         Key::D6 => Some(&WALL),
                         Key::D7 => Some(&METAL),
                         Key::D8 => Some(&ELECTRON),
+                        Key::D9 => Some(&LAVA),
                         _ => None, // Key not recognized, do nothing
                     };
                     if let Some(element) = element {

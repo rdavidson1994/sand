@@ -5,10 +5,10 @@ use crate::{
 use rand::{thread_rng, Rng};
 
 #[allow(dead_code)]
-const NO_ASH: u8 = 1;
-const MAKES_ASH: u8 = 2;
+pub const NO_ASH: u8 = 1;
+pub const MAKES_ASH: u8 = 2;
 
-pub(crate) static ASH: Element = Element {
+pub static ASH: Element = Element {
     flags: GRAVITY,
     color: [0.3, 0.3, 0.3, 1.0],
     mass: 3,
