@@ -27,19 +27,6 @@ pub static ROCK: Element = Element {
     ..ELEMENT_DEFAULT
 };
 
-pub static WATER: Element = Element {
-    flags: GRAVITY | PAUSE_EXEMPT,
-    color: [0.0, 0.0, 1.0, 1.0],
-    mass: 8,
-    id: 6,
-    periodic_side_effect: Some(|world, position| {
-        // Water "jiggles" slightly
-        let water_tile = world[position].as_mut().unwrap();
-        water_tile.velocity.x += rand::thread_rng().gen_range(-3, 4);
-    }),
-    ..ELEMENT_DEFAULT
-};
-
 pub static GAS: Element = Element {
     flags: PAUSE_EXEMPT,
     color: [1.0, 0.5, 1.0, 1.0],

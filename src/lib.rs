@@ -1,16 +1,19 @@
+mod element;
 mod fire;
 mod lava;
 mod metal;
 mod simple_elements;
 mod tile;
 mod util;
+mod water;
 mod world;
 
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
-use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
+use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
+use crate::water::WATER;
 use crate::world::World;
 
 use itertools::{iproduct, Itertools};
