@@ -17,6 +17,38 @@ use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
+
+lazy_static! {
+    static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
+        let default_setup = |x| Box::new(DefaultSetup::new(x));
+        vec![
+            default_setup(&SAND),
+            default_setup(&ROCK),
+            default_setup(&WALL),
+            default_setup(&WATER),
+            default_setup(&GAS),
+            default_setup(&ASH),
+            default_setup(&METAL),
+            Box::new(LavaSetup),
+            Box::new(ElectronSetup),
+            Box::new(FireElementSetup),
+        ]
+    };
+}
+
+lazy_static! {
+    static ref ELEMENTS: Vec<Element> = {
+        let mut out = vec![];
+        for s in SETUPS.iter().sorted_by_key(|x| x.get_id().0) {
+            out.push(s.build_element());
+        }
+        for (i, elem) in out.iter().enumerate() {
+            assert_eq!(i, elem.id as usize);
+        }
+        out
+    };
+}
+
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
@@ -367,40 +399,6 @@ impl Pen for ElementPen {
             ))
         }
     }
-}
-
-lazy_static! {
-    static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
-        let default_setup = |x| {
-            Box::new(DefaultSetup::new(x))
-        };
-        vec![
-            default_setup(&SAND),
-            default_setup(&ROCK),
-            default_setup(&WALL),
-            default_setup(&WATER),
-            default_setup(&GAS),
-            default_setup(&ASH),
-            default_setup(&METAL),
-            Box::new(LavaSetup),
-            Box::new(ElectronSetup), // ELECTRON
-            Box::new(FireElementSetup), // FIRE
-            // Todo: add the rest of the elements
-        ]
-    };
-}
-
-lazy_static! {
-    static ref ELEMENTS: Vec<Element> = {
-        let mut out = vec![];
-        for s in SETUPS.iter().sorted_by_key(|x| x.get_id().0) {
-            out.push(s.build_element());
-        }
-        for (i, elem) in out.iter().enumerate() {
-            assert_eq!(i, elem.id as usize);
-        }
-        out
-    };
 }
 
 pub fn game_loop() {
