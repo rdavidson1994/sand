@@ -7,8 +7,9 @@ mod util;
 mod world;
 
 use crate::fire::{FireElementSetup, ASH, FIRE};
+use crate::lava::LAVA;
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
-use crate::simple_elements::{ELEMENT_DEFAULT, GAS, LAVA, ROCK, SAND, WALL, WATER};
+use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL, WATER};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
 
