@@ -6,7 +6,6 @@ pub static ELEMENT_DEFAULT: Element = Element {
     color: [1.0, 0.0, 1.0, 1.0],
     mass: 0,
     id: 255,
-    periodic_side_effect: None,
     periodic_reaction: None,
     state_colors: None,
 };

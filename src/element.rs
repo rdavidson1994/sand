@@ -1,4 +1,3 @@
-use crate::tile::Tile;
 use crate::world::World;
 use crate::ELEMENTS;
 use std::num::NonZeroU8;
@@ -58,8 +57,7 @@ pub struct Element {
     pub color: Color,
     pub mass: i8,
     pub id: u8,
-    pub periodic_side_effect: Option<fn(&mut World, usize)>,
-    pub periodic_reaction: Option<fn(&mut Tile)>,
+    pub periodic_reaction: Option<fn(&mut World, usize)>,
     pub state_colors: Option<fn(u8) -> &'static Color>,
 }
 

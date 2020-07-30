@@ -198,10 +198,7 @@ impl World {
         for i in 0..WORLD_SIZE as usize {
             if let Some(tile) = &mut self[i] {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
-                    reaction(tile)
-                }
-                if let Some(side_effect) = tile.get_element().periodic_side_effect {
-                    side_effect(self, i);
+                    reaction(self, i);
                 }
             }
         }

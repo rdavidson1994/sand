@@ -22,7 +22,7 @@ pub static METAL: Element = Element {
         NEUTRAL | _ => &NEUTRAL_COLOR,
     }),
 
-    periodic_side_effect: Some(|world, i| {
+    periodic_reaction: Some(|world, i| {
         let (this, mut neighbors) = world.mutate_neighborhood(i);
         match this.special_info() {
             CHARGED_HEAD => {

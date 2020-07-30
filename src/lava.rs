@@ -11,7 +11,7 @@ pub static LAVA: Element = Element {
     color: [0.8, 0.5, 0.2, 1.0],
     mass: 50,
     id: 9,
-    periodic_side_effect: Some(|world, position| {
+    periodic_reaction: Some(|world, position| {
         let (this, mut neighbors) = world.mutate_neighborhood(position);
         neighbors.for_each(|tile| match tile {
             Some(_) => {

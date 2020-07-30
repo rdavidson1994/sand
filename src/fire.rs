@@ -23,7 +23,7 @@ pub static FIRE: Element = Element {
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
     id: 4,
-    periodic_side_effect: Some(|w, i| {
+    periodic_reaction: Some(|w, i| {
         let mut rng = thread_rng();
         for j in neighbors(i) {
             let mut did_burn = false;
