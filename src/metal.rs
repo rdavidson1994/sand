@@ -1,4 +1,4 @@
-use crate::element::NO_FLAGS;
+use crate::element::PERFECT_RESTITUTION;
 use crate::world::World;
 use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
 
@@ -51,7 +51,7 @@ pub static METAL: Element = Element {
 
 pub static ELECTRON: Element = Element {
     mass: 2,
-    flags: NO_FLAGS,
+    flags: PERFECT_RESTITUTION,
     id: 8,
     color: [0.5, 0.5, 1.0, 1.0],
     ..ELEMENT_DEFAULT

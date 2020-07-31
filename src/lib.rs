@@ -1,5 +1,6 @@
 mod element;
 mod fire;
+mod gas;
 mod lava;
 mod metal;
 mod simple_elements;
@@ -10,9 +11,10 @@ mod world;
 
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::fire::{FireElementSetup, ASH, FIRE};
+use crate::gas::GAS;
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
-use crate::simple_elements::{ELEMENT_DEFAULT, GAS, ROCK, SAND, WALL};
+use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
 use crate::world::World;
@@ -325,7 +327,7 @@ pub fn game_loop() {
 
     //let mut i = 0;
     util::create_walls(&mut world);
-    util::populate_world_water_bubble(&mut world);
+    //util::populate_world_water_bubble(&mut world);
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.
@@ -360,18 +362,15 @@ pub fn game_loop() {
 
         if let Some(args) = e.button_args() {
             match args.button {
-                Button::Mouse(MouseButton::Left) => {
-                    match args.state {
-                        ButtonState::Press => {
-                            drawing = true;
-                            selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
-                            //draw(&mut app.world, selected_element, last_mouse_pos.0, last_mouse_pos.1);
-                        }
-                        ButtonState::Release => {
-                            drawing = false;
-                        }
+                Button::Mouse(MouseButton::Left) => match args.state {
+                    ButtonState::Press => {
+                        drawing = true;
+                        selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
                     }
-                }
+                    ButtonState::Release => {
+                        drawing = false;
+                    }
+                },
                 Button::Keyboard(key) => {
                     let element = match key {
                         Key::D1 => Some(&SAND),

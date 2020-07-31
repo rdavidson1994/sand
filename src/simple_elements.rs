@@ -1,4 +1,4 @@
-use crate::element::{Element, GRAVITY, NO_FLAGS, PAUSE_EXEMPT};
+use crate::element::{Element, GRAVITY, NO_FLAGS};
 use crate::FIXED;
 
 pub static ELEMENT_DEFAULT: Element = Element {
@@ -23,14 +23,6 @@ pub static ROCK: Element = Element {
     color: [0.5, 0.5, 0.5, 1.0],
     mass: 50,
     id: 1,
-    ..ELEMENT_DEFAULT
-};
-
-pub static GAS: Element = Element {
-    flags: PAUSE_EXEMPT,
-    color: [1.0, 0.5, 1.0, 1.0],
-    mass: 3,
-    id: 3,
     ..ELEMENT_DEFAULT
 };
 

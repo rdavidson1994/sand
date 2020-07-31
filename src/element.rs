@@ -17,10 +17,11 @@ impl DefaultSetup {
 // Can't use bitflags crate at the moment, since we need FLAG1 | FLAG2 to be const
 pub type EFlag = u8;
 
-pub const GRAVITY: EFlag = 1 << 0;
-pub const PAUSE_EXEMPT: EFlag = 1 << 2;
 pub const NO_FLAGS: EFlag = 0;
+pub const GRAVITY: EFlag = 1 << 0;
 pub const FIXED: EFlag = 1 << 1;
+pub const PAUSE_EXEMPT: EFlag = 1 << 2;
+pub const PERFECT_RESTITUTION: EFlag = 1 << 3;
 
 impl SpecialElementInfo {
     pub fn none() -> Self {

@@ -1,4 +1,4 @@
-use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS};
+use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS, PERFECT_RESTITUTION};
 use crate::neighbors;
 use crate::simple_elements::{ELEMENT_DEFAULT, SAND};
 use crate::tile::{ElementState, Tile, Vector};
@@ -11,7 +11,7 @@ pub const NO_ASH: u8 = 1;
 pub const MAKES_ASH: u8 = 2;
 
 pub static ASH: Element = Element {
-    flags: GRAVITY,
+    flags: GRAVITY | PERFECT_RESTITUTION,
     color: [0.1, 0.1, 0.1, 1.0],
     mass: 3,
     id: 5,

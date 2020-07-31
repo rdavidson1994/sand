@@ -15,6 +15,7 @@ fn populate_world_bullet(world: &mut World) {
     ))
 }
 
+#[allow(dead_code)]
 pub fn populate_world_water_bubble(world: &mut World) {
     for x in 1..WORLD_WIDTH - 1 {
         for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 1 {

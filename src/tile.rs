@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 mod element_state;
-use crate::element::{EFlag, Element, ElementId, SpecialElementInfo};
+use crate::element::{EFlag, Element, ElementId, SpecialElementInfo, PERFECT_RESTITUTION};
 use crate::ELEMENTS;
 pub use element_state::*;
 
@@ -103,8 +103,16 @@ impl Tile {
             self.get_element().mass,
             particle2.get_element().mass,
         );
-        self.velocity.y = v1y;
-        particle2.velocity.y = v2y;
+        if self.has_flag(PERFECT_RESTITUTION) {
+            self.velocity.y = v1y;
+        } else {
+            self.velocity.y = (v1y as f64 * BASE_COLLIDE_RESTITUTION).trunc() as i8;
+        }
+        if particle2.has_flag(PERFECT_RESTITUTION) {
+            particle2.velocity.y = v2y;
+        } else {
+            particle2.velocity.y = (v2y as f64 * BASE_COLLIDE_RESTITUTION).trunc() as i8;
+        }
     }
 
     pub fn elastic_collide_x(&mut self, particle2: &mut Tile) {
@@ -114,16 +122,32 @@ impl Tile {
             self.get_element().mass,
             particle2.get_element().mass,
         );
-        self.velocity.x = v1x;
-        particle2.velocity.x = v2x;
+        if self.has_flag(PERFECT_RESTITUTION) {
+            self.velocity.x = v1x;
+        } else {
+            self.velocity.x = (v1x as f64 * BASE_COLLIDE_RESTITUTION).trunc() as i8;
+        }
+        if particle2.has_flag(PERFECT_RESTITUTION) {
+            particle2.velocity.x = v2x;
+        } else {
+            particle2.velocity.x = (v2x as f64 * BASE_COLLIDE_RESTITUTION).trunc() as i8;
+        }
     }
 
     pub fn reflect_velocity_x(&mut self) {
-        self.velocity.x = (-(self.velocity.x as f64) * BASE_RESTITUTION).trunc() as i8;
+        if self.has_flag(PERFECT_RESTITUTION) {
+            self.velocity.x = -self.velocity.x;
+        } else {
+            self.velocity.x = (-(self.velocity.x as f64) * BASE_RESTITUTION).trunc() as i8;
+        }
     }
 
     pub fn reflect_velocity_y(&mut self) {
-        self.velocity.y = (-(self.velocity.y as f64) * BASE_RESTITUTION).trunc() as i8;
+        if self.has_flag(PERFECT_RESTITUTION) {
+            self.velocity.y = -self.velocity.y;
+        } else {
+            self.velocity.y = (-(self.velocity.y as f64) * BASE_RESTITUTION).trunc() as i8;
+        }
     }
 }
 
