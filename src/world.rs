@@ -1,9 +1,10 @@
-use crate::element::{Element, FIXED, GRAVITY, PAUSE_EXEMPT};
+use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::{
     above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
+use rand::Rng;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
@@ -114,21 +115,18 @@ impl World {
         let (source_tile, dest_tile) = self.mutate_pair(source, destination);
         match (source_tile, dest_tile) {
             //match (world[source].as_mut(), world[destination].as_mut()) {
-            (None, None) | (None, Some(_)) => {
+            (None, _) => {
                 //Source particle has moved for some other reason - nothing to do
             }
             (Some(_), None) => {
                 self.swap(source, destination);
             }
             (Some(ref mut s), Some(ref mut d)) => {
-                s.velocity.x;
-                d.velocity.x;
                 if adjacent_x(source, destination) {
                     if d.has_flag(FIXED) {
                         s.reflect_velocity_x();
                     } else {
                         s.elastic_collide_x(d);
-                        self.unpause(destination);
                     }
                 } else
                 /*if adjacent_y(source, destination)*/
@@ -137,9 +135,13 @@ impl World {
                         s.reflect_velocity_y();
                     } else {
                         s.elastic_collide_y(d);
-                        self.unpause(destination);
                     }
                 }
+                if d.has_flag(FLUID) && rand::thread_rng().gen_range(0, 2) == 0 {
+                    // Fluids don't collide, they just push through
+                    self.swap(source, destination);
+                }
+                self.unpause(destination);
                 self.trigger_collision_reactions(source, destination);
                 self.trigger_collision_side_effects(source, destination);
             }
@@ -215,8 +217,15 @@ impl World {
         element2: &Element,
         reaction: fn(&mut Tile, &mut Tile),
     ) {
-        let first_id = std::cmp::min(element1.id, element2.id);
-        let second_id = std::cmp::max(element1.id, element2.id);
+        let first_id = element1.id;
+        let second_id = element2.id;
+        if second_id < first_id {
+            panic!(
+                "Incorrect collision reaction registration for ids {} {}:\
+                Ensure that elements are in ascending order or id",
+                first_id, second_id
+            )
+        }
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_reactions.insert(reagent_ids, reaction);
         match conflict {
@@ -234,8 +243,15 @@ impl World {
         element2: &Element,
         side_effect: fn(&mut World, usize, usize),
     ) {
-        let first_id = std::cmp::min(element1.id, element2.id);
-        let second_id = std::cmp::max(element1.id, element2.id);
+        let first_id = element1.id;
+        let second_id = element2.id;
+        if second_id < first_id {
+            panic!(
+                "Incorrect collision reaction registration for ids {} {}:\
+                Ensure that elements are in ascending order or id",
+                first_id, second_id
+            )
+        }
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_side_effects.insert(reagent_ids, side_effect);
         match conflict {
@@ -258,9 +274,9 @@ impl World {
             .get_mut(&(first_element_id, last_element_id))
         {
             if first_element_id == source_element_id {
-                reaction(self, destination, source);
-            } else {
                 reaction(self, source, destination);
+            } else {
+                reaction(self, destination, source);
             }
             true
         } else {
@@ -283,9 +299,9 @@ impl World {
                 destination_option.as_mut().unwrap(),
             );
             if first_element_id == source_element_id {
-                reaction(destination_tile, source_tile);
-            } else {
                 reaction(source_tile, destination_tile);
+            } else {
+                reaction(destination_tile, source_tile);
             }
             true
         } else {
@@ -293,7 +309,7 @@ impl World {
         }
     }
 
-    fn mutate_pair(
+    pub(crate) fn mutate_pair(
         &mut self,
         first: usize,
         second: usize,

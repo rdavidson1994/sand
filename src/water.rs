@@ -1,9 +1,9 @@
-use crate::element::{Element, GRAVITY, PAUSE_EXEMPT};
+use crate::element::{Element, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use rand::Rng;
 
 pub static WATER: Element = Element {
-    flags: GRAVITY | PAUSE_EXEMPT,
+    flags: GRAVITY | PAUSE_EXEMPT | FLUID,
     color: [0.0, 0.0, 1.0, 1.0],
     mass: 8,
     id: 6,

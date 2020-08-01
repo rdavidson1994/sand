@@ -22,6 +22,7 @@ pub const GRAVITY: EFlag = 1 << 0;
 pub const FIXED: EFlag = 1 << 1;
 pub const PAUSE_EXEMPT: EFlag = 1 << 2;
 pub const PERFECT_RESTITUTION: EFlag = 1 << 3;
+pub const FLUID: EFlag = 1 << 4;
 
 impl SpecialElementInfo {
     pub fn none() -> Self {

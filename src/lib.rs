@@ -330,7 +330,7 @@ pub fn game_loop() {
 
     //let mut i = 0;
     util::create_walls(&mut world);
-    //util::populate_world_water_bubble(&mut world);
+    util::populate_world_water_bubble(&mut world);
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.

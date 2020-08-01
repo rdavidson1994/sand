@@ -60,7 +60,7 @@ pub struct FireElementSetup;
 impl ElementSetup for FireElementSetup {
     fn register_reactions(&self, world: &mut World) {
         // Fire burns sand
-        world.register_collision_side_effect(&FIRE, &SAND, |world, _i_fire, i_other| {
+        world.register_collision_side_effect(&SAND, &FIRE, |world, i_other, _i_fire| {
             let mut rng = thread_rng();
             let (other, mut neighbors) = world.mutate_neighbors(i_other);
             other.set_element(FIRE.id());
@@ -85,9 +85,23 @@ impl ElementSetup for FireElementSetup {
             });
         });
 
+        // // Water extinguishes fire
+        // world.register_collision_reaction(&FIRE, &WATER, |_water_tile, fire_tile| {
+        //     println!("{}", fire_tirle.get_element().id);
+        //     fire_tile.set_element(ASH.id());
+        // });
         // Water extinguishes fire
-        world.register_collision_reaction(&FIRE, &WATER, |fire_tile, _water_tile| {
-            fire_tile.set_element(ASH.id());
+        world.register_collision_side_effect(&FIRE, &WATER, |world, i_fire, _i_water| {
+            let mut make_ash = false;
+            if let Some(fire) = &mut world[i_fire] {
+                if fire.special_info() == MAKES_ASH {
+                    fire.set_element(ASH.id());
+                    make_ash = true;
+                }
+            }
+            if !make_ash {
+                world[i_fire] = None;
+            }
         });
     }
 
