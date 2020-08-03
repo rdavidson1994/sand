@@ -19,9 +19,11 @@ pub static GLASS: Element = Element {
             // If any neighboring tile is empty or non-glass
             {
                 this.edit_state(GLASS.id(), GLASS_EDGE);
+                // This tile's state becomes "GLASS_EDGE"
                 return Some(this);
             };
         }
+        // Otherwise its state becomes "GLASS_INNER"
         this.edit_state(GLASS.id(), GLASS_INNER);
         return Some(this);
     }),

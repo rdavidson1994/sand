@@ -150,11 +150,11 @@ impl World {
                         s.elastic_collide_y(d);
                     }
                 }
+                d.paused = false;
                 if d.has_flag(FLUID) && rand::thread_rng().gen_range(0, 2) == 0 {
                     // Fluids don't collide, they just push through
                     self.swap(source, destination);
                 }
-                self.unpause(destination);
                 self.trigger_collision_reactions(source, destination);
                 self.trigger_collision_side_effects(source, destination);
             }
@@ -239,11 +239,11 @@ impl World {
             }
         });
 
-        for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &mut self[i] {
+        self.grid.par_iter_mut().for_each(|square| {
+            if let Some(tile) = square {
                 tile.save_state();
             }
-        }
+        });
     }
 
     pub fn register_collision_reaction(
@@ -344,7 +344,7 @@ impl World {
         }
     }
 
-    pub(crate) fn mutate_pair(
+    pub fn mutate_pair(
         &mut self,
         first: usize,
         second: usize,
