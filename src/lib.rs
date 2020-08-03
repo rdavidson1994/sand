@@ -1,3 +1,4 @@
+mod chunk_view;
 mod element;
 mod fire;
 mod gas;
@@ -57,8 +58,8 @@ lazy_static! {
     };
 }
 
-const WORLD_WIDTH: i32 = 200;
-const WORLD_HEIGHT: i32 = 200;
+const WORLD_WIDTH: i32 = 202;
+const WORLD_HEIGHT: i32 = 202;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
@@ -153,6 +154,15 @@ pub fn neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
         .filter(|&tuple| tuple != (0, 0)) // exclude same tile
         .map(move |(dx, dy)| (x + dx, y + dy))
         .filter(|&(x, y)| in_bounds(x, y)) // exclude tiles outside world bounds
+        .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
+}
+
+pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
+    let x = index as i32 % WORLD_WIDTH;
+    let y = index as i32 / WORLD_WIDTH;
+    iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
+        .filter(|&tuple| tuple != (0, 0)) // exclude same tile
+        .map(move |(dx, dy)| (x + dx, y + dy)) // exclude tiles outside world bounds
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
 }
 

@@ -1,4 +1,3 @@
-use crate::water::WATER;
 use crate::{
     point, ElementState, Tile, Vector, World, FIRE, GAS, ROCK, SAND, WALL, WORLD_HEIGHT,
     WORLD_WIDTH,
@@ -31,7 +30,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
     for x in 20..WORLD_WIDTH - 20 {
         for y in WORLD_HEIGHT - 65..WORLD_HEIGHT - 45 {
             world[point(x, y)] = Some(Tile::new(
-                ElementState::default(WATER.id()),
+                ElementState::default(ROCK.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
                 false,

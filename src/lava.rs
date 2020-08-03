@@ -11,34 +11,36 @@ pub static LAVA: Element = Element {
     color: [0.8, 0.5, 0.2, 1.0],
     mass: 50,
     id: 9,
-    periodic_reaction: Some(|world, position| {
-        let (this, mut neighbors) = world.mutate_neighbors(position);
-        neighbors.for_each(|tile| match tile {
-            Some(_) => {
-                // Don't do anything to existing tiles
-            }
-            None => {
-                // Sprinkle fire into empty ones
-                if rand::thread_rng().gen_range(0, 150) == 0 {
-                    *tile = Some(Tile::new(
-                        ElementState::new(FIRE.id(), NO_ASH),
-                        Vector {
-                            x: rand::thread_rng().gen_range(-126, 127),
-                            y: rand::thread_rng().gen_range(-126, 127),
-                        },
-                        Vector {
-                            x: rand::thread_rng().gen_range(-10, 10),
-                            y: rand::thread_rng().gen_range(-10, 10),
-                        },
-                        false,
-                    ));
-                    // Every time you create fire, roll to cool into rock
-                    if rand::thread_rng().gen_range(0, 30) == 0 {
-                        this.set_element(ROCK.id());
+    periodic_reaction: Some(|mut this, mut world| {
+        for i in world.neighbors() {
+            match world[i] {
+                Some(_) => {
+                    // Don't do anything to existing tiles
+                }
+                None => {
+                    // Sprinkle fire into empty ones
+                    if rand::thread_rng().gen_range(0, 150) == 0 {
+                        world[i] = Some(Tile::new(
+                            ElementState::new(FIRE.id(), NO_ASH),
+                            Vector {
+                                x: rand::thread_rng().gen_range(-126, 127),
+                                y: rand::thread_rng().gen_range(-126, 127),
+                            },
+                            Vector {
+                                x: rand::thread_rng().gen_range(-10, 10),
+                                y: rand::thread_rng().gen_range(-10, 10),
+                            },
+                            false,
+                        ));
+                        // Every time you create fire, roll to cool into rock
+                        if rand::thread_rng().gen_range(0, 30) == 0 {
+                            this.set_element(ROCK.id());
+                        }
                     }
                 }
             }
-        })
+        }
+        Some(this)
     }),
     ..ELEMENT_DEFAULT
 };

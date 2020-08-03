@@ -1,3 +1,5 @@
+use crate::chunk_view::ChunkView;
+use crate::tile::Tile;
 use crate::world::World;
 use crate::ELEMENTS;
 use std::num::NonZeroU8;
@@ -59,7 +61,7 @@ pub struct Element {
     pub color: Color,
     pub mass: i8,
     pub id: u8,
-    pub periodic_reaction: Option<fn(&mut World, usize)>,
+    pub periodic_reaction: Option<fn(Tile, ChunkView<Option<Tile>>) -> Option<Tile>>,
     pub state_colors: Option<fn(u8) -> &'static Color>,
 }
 

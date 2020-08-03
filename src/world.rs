@@ -1,3 +1,4 @@
+use crate::chunk_view::ChunkView;
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::{
@@ -5,9 +6,16 @@ use crate::{
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
 use rand::Rng;
+use rayon::prelude::*;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
+const CHUNK_MUTATE_HEIGHT: usize = 10;
+const CHUNK_HEIGHT: usize = CHUNK_MUTATE_HEIGHT * 2;
+const CHUNK_SIZE: usize = CHUNK_HEIGHT * WORLD_WIDTH as usize;
+const CHUNK_MUTATE_SIZE: usize = CHUNK_MUTATE_HEIGHT * WORLD_WIDTH as usize;
+const CHUNK_MUTATE_START: usize = WORLD_WIDTH as usize + 1;
+const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
 
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
@@ -98,6 +106,11 @@ impl World {
 
     pub fn swap(&mut self, i: usize, j: usize) {
         self.grid.swap(i, j);
+        if let Some(above_source) = above(i) {
+            if let Some(tile) = &mut self[above_source] {
+                tile.paused = false;
+            }
+        }
     }
 
     pub fn neighbor_count(&self, i: usize, predicate: impl Fn(&Tile) -> bool) -> usize {
@@ -196,14 +209,36 @@ impl World {
         }
     }
 
+    /// Calls the function once for each tile between the initial and final wall segments
+    /// The function receives a slice of the grid and index into the slice
+    /// The slice is guaranteed to contain enough tiles to access the given index's
+    /// Moore neighborhood
+    pub fn chunked_for_each(&mut self, f: fn(&mut [Option<Tile>], usize)) {
+        self.grid
+            .par_chunks_exact_mut(CHUNK_SIZE)
+            .for_each(|chunk| {
+                for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
+                    f(chunk, i);
+                }
+            });
+
+        let offset_grid = &mut self.grid[CHUNK_MUTATE_SIZE..];
+        offset_grid.par_chunks_mut(CHUNK_SIZE).for_each(|chunk| {
+            for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
+                f(chunk, i);
+            }
+        });
+    }
+
     pub fn apply_periodic_reactions(&mut self) {
-        for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &mut self[i] {
+        self.chunked_for_each(|chunk, i| {
+            if let Some(tile) = &mut chunk[i] {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
-                    reaction(self, i);
+                    chunk[i] = reaction(*tile, ChunkView::new(chunk, i));
                 }
             }
-        }
+        });
+
         for i in 0..WORLD_SIZE as usize {
             if let Some(tile) = &mut self[i] {
                 tile.save_state();

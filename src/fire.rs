@@ -1,5 +1,4 @@
 use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS, PERFECT_RESTITUTION};
-use crate::neighbors;
 use crate::simple_elements::{ELEMENT_DEFAULT, SAND};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
@@ -23,35 +22,30 @@ pub static FIRE: Element = Element {
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
     id: 4,
-    periodic_reaction: Some(|w, i| {
-        let mut rng = thread_rng();
-        for j in neighbors(i) {
-            let mut did_burn = false;
-            if let Some(tile) = &mut w[j] {
+    periodic_reaction: Some(|mut this, mut w| {
+        w.for_each_neighbor(|opt_tile| {
+            if let Some(tile) = opt_tile {
+                tile.paused = false;
                 if tile.element_id() == SAND.id {
                     tile.edit_state(FIRE.id(), MAKES_ASH);
-                    did_burn = true;
                 }
             }
-            if did_burn {
-                w.unpause(j);
+        });
+
+        if thread_rng().gen_range(0, 100) == 0 {
+            if let Some(above_tile) = w.above() {
+                above_tile.paused = false;
             }
+
+            return if thread_rng().gen_range(0, 3) == 0 && this.special_info() == MAKES_ASH {
+                this.set_element(ASH.id());
+                Some(this)
+            } else {
+                None
+            };
         }
-        if rng.gen_range(0, 100) == 0 {
-            w.unpause(i);
-            let mut made_ash = false;
-            if rng.gen_range(0, 3) == 0 {
-                if let Some(tile) = &mut w[i] {
-                    if tile.special_info() == MAKES_ASH {
-                        tile.set_element(ASH.id());
-                        made_ash = true;
-                    }
-                }
-            }
-            if !made_ash {
-                w[i] = None;
-            }
-        }
+
+        return Some(this);
     }),
     ..ELEMENT_DEFAULT
 };

@@ -14,7 +14,7 @@
 
 use crate::element::{ElementId, SpecialElementInfo};
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ElementState {
     pub element_id: ElementId,
     pub special_info: SpecialElementInfo,
@@ -36,7 +36,7 @@ impl ElementState {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ElementData {
     current: ElementState,
     staged: ElementState,

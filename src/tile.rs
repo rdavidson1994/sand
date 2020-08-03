@@ -11,13 +11,13 @@ pub use element_state::*;
 const BASE_RESTITUTION: f64 = 0.5;
 const BASE_COLLIDE_RESTITUTION: f64 = 0.8;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Vector {
     pub x: i8,
     pub y: i8,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Tile {
     pub paused: bool,
     pub velocity: Vector,
