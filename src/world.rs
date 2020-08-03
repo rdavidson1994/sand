@@ -197,16 +197,14 @@ impl World {
     }
 
     pub fn apply_gravity(&mut self) {
-        for i in 0..WORLD_SIZE as usize {
-            match &mut self[i] {
-                Some(ref mut tile) => {
-                    if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
-                        tile.velocity.y = tile.velocity.y.saturating_add(1);
-                    }
+        self.grid.par_iter_mut().for_each(|square| match square {
+            Some(ref mut tile) => {
+                if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
+                    tile.velocity.y = tile.velocity.y.saturating_add(1);
                 }
-                None => {}
             }
-        }
+            None => {}
+        })
     }
 
     /// Calls the function once for each tile between the initial and final wall segments
