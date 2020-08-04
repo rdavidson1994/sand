@@ -269,6 +269,11 @@ impl App {
                         (y * TILE_PIXELS) as f64,
                         TILE_PIXELS as f64,
                     );
+                    // let color = if tile.paused {
+                    //     [0.0, 0.0, 1.0, 1.0]
+                    // } else {
+                    //     [1.0, 0.0, 0.0, 1.0]
+                    // };
                     rectangle(*tile.color(), square, transform, gl);
                 }
             }
