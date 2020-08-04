@@ -20,7 +20,7 @@ use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
-use crate::world::World;
+use crate::world::{chunk_move_particle, World};
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
@@ -83,6 +83,7 @@ use piston::input::{
     UpdateArgs, UpdateEvent,
 };
 use piston::window::WindowSettings;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn in_bounds(x: i32, y: i32) -> bool {
     x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT
@@ -167,19 +168,19 @@ pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
 }
 
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
-    let mut needs_update = false;
+    let needs_update = AtomicBool::new(false);
     // This makes more sense at the end, but borrowck didn't like it
     // maybe check it later?
     motion_queue.clear();
-    for i in 0..WORLD_SIZE as usize {
-        if let Some(ref mut tile) = &mut world[i] {
+    world.chunked_for_each(|chunk, i| {
+        if let Some(ref mut tile) = &mut chunk[i] {
             if !tile.paused && !tile.has_flag(FIXED) {
                 let (new_x, overflowed_x) = tile.position.x.overflowing_add(tile.velocity.x);
                 let (new_y, overflowed_y) = tile.position.y.overflowing_add(tile.velocity.y);
                 tile.position.x = new_x;
                 tile.position.y = new_y;
                 if overflowed_x || overflowed_y {
-                    needs_update = true;
+                    needs_update.store(true, Ordering::Relaxed);
                     let delta_x = if overflowed_x {
                         tile.velocity.x.signum()
                     } else {
@@ -194,19 +195,23 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
                     let (new_grid_x, new_grid_y) =
                         (old_grid_x + delta_x as i32, old_grid_y + delta_y as i32);
                     if in_bounds(new_grid_x, new_grid_y) {
-                        let swap_pair = (i, point(new_grid_x, new_grid_y));
-                        // this logic is to allow "trains" of adjacent particles
-                        // to travel smoothly and not knock each other
-                        if delta_y < 0 || (delta_y == 0 && delta_x < 0) {
-                            motion_queue.push_back(swap_pair);
-                        } else {
-                            motion_queue.push_front(swap_pair);
-                        }
+                        // TODO : Correctly port over the swap code from world.
+                        // Also, see if the motion queue can be salvaged
+                        // to allow trains.
+                        chunk_move_particle(chunk, i, point(new_grid_x, new_grid_y));
+                        // let swap_pair = (i, point(new_grid_x, new_grid_y));
+                        // // this logic is to allow "trains" of adjacent particles
+                        // // to travel smoothly and not knock each other
+                        // if delta_y < 0 || (delta_y == 0 && delta_x < 0) {
+                        //     //motion_queue.push_back(swap_pair);
+                        // } else {
+                        //     //motion_queue.push_front(swap_pair);
+                        // }
                     }
                 }
             }
         }
-    }
+    });
 
     for (i, j) in motion_queue {
         assert!(in_bounds(coords(*i).0, coords(*i).1));
@@ -214,7 +219,7 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
         world.move_particle(*i, *j);
     }
 
-    needs_update
+    needs_update.load(Ordering::Relaxed)
 }
 
 fn coords(i: usize) -> (i32, i32) {
