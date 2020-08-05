@@ -8,6 +8,12 @@ use std::ops::{Index, IndexMut};
 #[derive(Clone, Copy)]
 pub struct ChunkIndex(usize);
 
+impl ChunkIndex {
+    pub fn new(index: usize) -> ChunkIndex {
+        ChunkIndex(index)
+    }
+}
+
 pub struct ChunkView<'a, T> {
     chunk: &'a mut [T],
     index: usize,
@@ -37,6 +43,22 @@ impl<'a, T> ChunkView<'a, T> {
     }
 }
 
+pub struct CollisionChunkView<'a, T> {
+    chunk: &'a mut [T],
+    index_source: usize,
+    index_destination: usize,
+}
+
+impl<'a, T> CollisionChunkView<'a, T> {
+    pub fn source(&'a mut self) -> ChunkView<'a, T> {
+        ChunkView::new(self.chunk, self.index_source)
+    }
+
+    pub fn destination(&'a mut self) -> ChunkView<'a, T> {
+        ChunkView::new(self.chunk, self.index_destination)
+    }
+}
+
 impl<'a, T> Index<ChunkIndex> for ChunkView<'a, T> {
     type Output = T;
 
@@ -59,6 +81,7 @@ impl<'a> Chunk<'a> {
     pub fn new(slice: &mut [Option<Tile>]) -> Chunk {
         Chunk { slice }
     }
+
     pub fn swap(&mut self, i: usize, j: usize) {
         self.slice.swap(i, j);
         if let Some(above_source) = above(i) {
@@ -68,10 +91,22 @@ impl<'a> Chunk<'a> {
         }
     }
 
-    pub fn move_particle(&mut self, source: usize, destination: usize) {
-        let (source_tile, dest_tile) = self.slice.mutate_pair(source, destination);
-        match (source_tile, dest_tile) {
-            //match (world[source].as_mut(), world[destination].as_mut()) {
+    pub fn move_particle(&mut self, source: ChunkIndex, delta_x: i8, delta_y: i8) {
+        //destination = source.0 + delta_x + WORLD_WIDTH * delta_y;
+        let source = source.0;
+        let mut destination = source;
+        if delta_x < 0 {
+            destination -= 1;
+        } else if delta_x > 0 {
+            destination += 1;
+        }
+        if delta_y < 0 {
+            destination -= WORLD_WIDTH as usize;
+        } else if delta_y > 0 {
+            destination += WORLD_WIDTH as usize;
+        }
+        let (source_tile, destination_tile) = self.slice.mutate_pair(source, destination);
+        match (source_tile, destination_tile) {
             (None, _) => {
                 //Source particle has moved for some other reason - nothing to do
             }
@@ -104,6 +139,10 @@ impl<'a> Chunk<'a> {
                 // self.trigger_collision_side_effects(source, destination);
             }
         }
+    }
+
+    pub fn create_view(&mut self, index: ChunkIndex) -> ChunkView<Option<Tile>> {
+        ChunkView::new(self.slice, index.0)
     }
 }
 

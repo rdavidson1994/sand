@@ -20,7 +20,7 @@ use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
-use crate::world::{chunk_move_particle, World};
+use crate::world::World;
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
@@ -69,7 +69,8 @@ const GRAVITY_PERIOD: i32 = 20;
 const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
 const SECONDS_PER_LOGICAL_FRAME: f64 = 1.0 / 1400.0; // Based on square = 1inch
-                                                     //graphics imports
+
+//graphics imports
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
@@ -167,12 +168,9 @@ pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
 }
 
-fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
+fn apply_velocity(world: &mut World) -> bool {
     let needs_update = AtomicBool::new(false);
-    // This makes more sense at the end, but borrowck didn't like it
-    // maybe check it later?
-    motion_queue.clear();
-    world.chunked_for_each(|chunk, i| {
+    world.chunked_for_each(|mut chunk, i| {
         if let Some(ref mut tile) = &mut chunk[i] {
             if !tile.paused && !tile.has_flag(FIXED) {
                 let (new_x, overflowed_x) = tile.position.x.overflowing_add(tile.velocity.x);
@@ -191,34 +189,11 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
                     } else {
                         0
                     };
-                    let (old_grid_x, old_grid_y) = coords(i);
-                    let (new_grid_x, new_grid_y) =
-                        (old_grid_x + delta_x as i32, old_grid_y + delta_y as i32);
-                    if in_bounds(new_grid_x, new_grid_y) {
-                        // TODO : Correctly port over the swap code from world.
-                        // Also, see if the motion queue can be salvaged
-                        // to allow trains.
-                        chunk_move_particle(chunk, i, point(new_grid_x, new_grid_y));
-                        // let swap_pair = (i, point(new_grid_x, new_grid_y));
-                        // // this logic is to allow "trains" of adjacent particles
-                        // // to travel smoothly and not knock each other
-                        // if delta_y < 0 || (delta_y == 0 && delta_x < 0) {
-                        //     //motion_queue.push_back(swap_pair);
-                        // } else {
-                        //     //motion_queue.push_front(swap_pair);
-                        // }
-                    }
+                    chunk.move_particle(i, delta_x, delta_y);
                 }
             }
         }
     });
-
-    for (i, j) in motion_queue {
-        assert!(in_bounds(coords(*i).0, coords(*i).1));
-        assert!(in_bounds(coords(*j).0, coords(*j).1));
-        world.move_particle(*i, *j);
-    }
-
     needs_update.load(Ordering::Relaxed)
 }
 
@@ -293,7 +268,7 @@ impl App {
             if self.turn % REACTION_PERIOD == 0 {
                 self.world.apply_periodic_reactions();
             }
-            apply_velocity(&mut self.world, &mut self.motion_queue);
+            apply_velocity(&mut self.world);
             self.turn += 1;
             i += 1;
         }

@@ -1,4 +1,4 @@
-use crate::chunk_view::{Chunk, ChunkIndex, ChunkView};
+use crate::chunk_view::{Chunk, ChunkIndex};
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::{
@@ -211,28 +211,28 @@ impl World {
     /// The function receives a slice of the grid and index into the slice
     /// The slice is guaranteed to contain enough tiles to access the given index's
     /// Moore neighborhood
-    pub fn chunked_for_each(&mut self, f: impl Fn(Chunk, usize) + Sync + Send) {
+    pub fn chunked_for_each(&mut self, f: impl Fn(Chunk, ChunkIndex) + Sync + Send) {
         self.grid
             .par_chunks_exact_mut(CHUNK_SIZE)
             .for_each(|slice| {
                 for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
-                    f(Chunk::new(slice), i);
+                    f(Chunk::new(slice), ChunkIndex::new(i));
                 }
             });
 
         let offset_grid = &mut self.grid[CHUNK_MUTATE_SIZE..];
         offset_grid.par_chunks_mut(CHUNK_SIZE).for_each(|slice| {
             for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
-                f(Chunk::new(slice), i);
+                f(Chunk::new(slice), ChunkIndex::new(i));
             }
         });
     }
 
     pub fn apply_periodic_reactions(&mut self) {
-        self.chunked_for_each(|chunk, i| {
+        self.chunked_for_each(|mut chunk, i| {
             if let Some(tile) = &mut chunk[i] {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
-                    chunk[i] = reaction(*tile, ChunkView::new(chunk, i));
+                    chunk[i] = reaction(*tile, chunk.create_view(i));
                 }
             }
         });
@@ -375,54 +375,6 @@ impl World {
             }
             // if any condition fails, exit the loop
             break;
-        }
-    }
-}
-
-// TODO: Upgrade chunk into an actual struct, make these chunk_* functions into methods
-pub fn chunk_swap(chunk: &mut [Option<Tile>], i: usize, j: usize) {
-    chunk.swap(i, j);
-    if let Some(above_source) = above(i) {
-        if let Some(tile) = &mut chunk[above_source] {
-            tile.paused = false;
-        }
-    }
-}
-
-pub fn chunk_move_particle(chunk: &mut [Option<Tile>], source: usize, destination: usize) {
-    let (source_tile, dest_tile) = chunk.mutate_pair(source, destination);
-    match (source_tile, dest_tile) {
-        //match (world[source].as_mut(), world[destination].as_mut()) {
-        (None, _) => {
-            //Source particle has moved for some other reason - nothing to do
-        }
-        (Some(_), None) => {
-            chunk_swap(chunk, source, destination);
-        }
-        (Some(ref mut s), Some(ref mut d)) => {
-            if adjacent_x(source, destination) {
-                if d.has_flag(FIXED) {
-                    s.reflect_velocity_x();
-                } else {
-                    s.elastic_collide_x(d);
-                }
-            } else
-            /*if adjacent_y(source, destination)*/
-            {
-                if d.has_flag(FIXED) {
-                    s.reflect_velocity_y();
-                } else {
-                    s.elastic_collide_y(d);
-                }
-            }
-            d.paused = false;
-            if d.has_flag(FLUID) && rand::thread_rng().gen_range(0, 2) == 0 {
-                // Fluids don't collide, they just push through
-                chunk_swap(chunk, source, destination);
-            }
-            // TODO: Reimplement collision reactions
-            // self.trigger_collision_reactions(source, destination);
-            // self.trigger_collision_side_effects(source, destination);
         }
     }
 }
