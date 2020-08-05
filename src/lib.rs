@@ -223,10 +223,6 @@ struct App {
 
 impl App {
     fn render(&mut self, args: &RenderArgs) {
-        //println!("FPS: {}", 1.0/args.ext_dt);
-        if !self.needs_render {
-            return;
-        }
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -253,7 +249,6 @@ impl App {
                 }
             }
         });
-        self.needs_render = false;
     }
 
     fn update(&mut self, args: &UpdateArgs) {
@@ -272,12 +267,11 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        self.time_balance -= (i as f64) * SECONDS_PER_LOGICAL_FRAME;
-        self.frame_balance += i;
-        if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
-            self.needs_render = true;
-            self.frame_balance = 0;
-        }
+        self.time_balance = self.time_balance.trunc(); //(i as f64) * SECONDS_PER_LOGICAL_FRAME;
+                                                       // if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
+                                                       //     self.needs_render = true;
+                                                       //     //self.frame_balance = 0;
+                                                       // }
     }
 }
 
@@ -323,21 +317,8 @@ pub fn game_loop() {
     let open_gl = OpenGL::V3_2;
     let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
 
-    //let mut i = 0;
     util::create_walls(&mut world);
     util::populate_world_water_bubble(&mut world);
-    world.chunked_for_each(|mut chunk, index| {
-        let none_or_wall = match chunk[index] {
-            Some(tile) => tile.element_id() == WALL.id,
-            None => true,
-        };
-        if !(none_or_wall) {
-            dbg!(index);
-        }
-        chunk[index] = Some(Tile::stationary(ElementState::default(SAND.id())));
-    });
-    //FireElementSetup.register_reactions(&mut world);
-
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new("Falling sand", size)
         .graphics_api(open_gl)
