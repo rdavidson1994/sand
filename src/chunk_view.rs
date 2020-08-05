@@ -5,7 +5,7 @@ use crate::{above, adjacent_x, neighbors, raw_neighbors, WORLD_WIDTH};
 use rand::Rng;
 use std::ops::{Index, IndexMut};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct ChunkIndex(usize);
 
 impl ChunkIndex {

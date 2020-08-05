@@ -14,7 +14,7 @@ const CHUNK_MUTATE_HEIGHT: usize = 10;
 const CHUNK_HEIGHT: usize = CHUNK_MUTATE_HEIGHT * 2;
 const CHUNK_SIZE: usize = CHUNK_HEIGHT * WORLD_WIDTH as usize;
 const CHUNK_MUTATE_SIZE: usize = CHUNK_MUTATE_HEIGHT * WORLD_WIDTH as usize;
-const CHUNK_MUTATE_START: usize = WORLD_WIDTH as usize + 1;
+const CHUNK_MUTATE_START: usize = WORLD_WIDTH as usize + 2;
 const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
 
 pub struct World {

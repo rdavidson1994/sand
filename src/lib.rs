@@ -58,8 +58,8 @@ lazy_static! {
     };
 }
 
-const WORLD_WIDTH: i32 = 202;
-const WORLD_HEIGHT: i32 = 202;
+const WORLD_WIDTH: i32 = 204;
+const WORLD_HEIGHT: i32 = 204;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
@@ -326,6 +326,16 @@ pub fn game_loop() {
     //let mut i = 0;
     util::create_walls(&mut world);
     util::populate_world_water_bubble(&mut world);
+    world.chunked_for_each(|mut chunk, index| {
+        let none_or_wall = match chunk[index] {
+            Some(tile) => tile.element_id() == WALL.id,
+            None => true,
+        };
+        if !(none_or_wall) {
+            dbg!(index);
+        }
+        chunk[index] = Some(Tile::stationary(ElementState::default(SAND.id())));
+    });
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.
