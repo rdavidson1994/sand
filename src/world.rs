@@ -1,5 +1,6 @@
 use crate::chunk_view::{Chunk, ChunkIndex};
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
+use crate::metal::{ELECTRON, METAL};
 use crate::tile::{ElementState, Tile};
 use crate::{
     above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
@@ -10,12 +11,6 @@ use rayon::prelude::*;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
-const CHUNK_MUTATE_HEIGHT: usize = 10;
-const CHUNK_HEIGHT: usize = CHUNK_MUTATE_HEIGHT * 2;
-const CHUNK_SIZE: usize = CHUNK_HEIGHT * WORLD_WIDTH as usize;
-const CHUNK_MUTATE_SIZE: usize = CHUNK_MUTATE_HEIGHT * WORLD_WIDTH as usize;
-const CHUNK_MUTATE_START: usize = WORLD_WIDTH as usize + 2;
-const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
 
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
@@ -208,10 +203,27 @@ impl World {
     }
 
     /// Calls the function once for each tile between the initial and final wall segments
-    /// The function receives a slice of the grid and index into the slice
-    /// The slice is guaranteed to contain enough tiles to access the given index's
-    /// Moore neighborhood
+    /// The function receives a mutable chunk and an index into the chunk
+    /// The chunk is guaranteed to contain enough tiles to access the given index's
+    /// Moore neighborhood of radius 2 (i.e. up to 2 tiles away orthogonally or diagonally)
     pub fn chunked_for_each(&mut self, f: impl Fn(Chunk, ChunkIndex) + Sync + Send) {
+        const CHUNK_MUTATE_HEIGHT: usize = 10;
+        // Each thread will mutate 10 rows of the world at a time
+        const CHUNK_HEIGHT: usize = CHUNK_MUTATE_HEIGHT * 2;
+        // To give a "buffer" to ensure that the whole Moore neighborhood is inside the chunk,
+        // We will actually borrow a chunk of twice that height.
+        const CHUNK_SIZE: usize = CHUNK_HEIGHT * WORLD_WIDTH as usize;
+        const CHUNK_MUTATE_SIZE: usize = CHUNK_MUTATE_HEIGHT * WORLD_WIDTH as usize - 4;
+        // Why -4?
+        // We *could* simply mutate a full CHUNK_MUTATE_HEIGHT * WORLD_WIDTH
+        // but subtracting 4 leaves out a few wall tiles, and more importantly
+        // preserves our guarantee about Moore neighborhoods for the final,
+        // undersized chunk in the second para_chunks_mut call.
+        const CHUNK_MUTATE_START: usize = (2 * WORLD_WIDTH + 2) as usize;
+        // CHUNK_MUTATE_START is the first "safe" index in the chunk to touch.
+        // Anything prior, and we don't have the point's full Moore neighborhood
+        // contained inside the chunk
+        const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
         self.grid
             .par_chunks_exact_mut(CHUNK_SIZE)
             .for_each(|slice| {
@@ -219,13 +231,23 @@ impl World {
                     f(Chunk::new(slice), ChunkIndex::new(i));
                 }
             });
+        // Calling the exact version of this method is important -
+        // Otherwise we end up with a useless half-sized chunk at the end
+        // which can't keep our gaurantee about the Moore neighborhood
 
-        let offset_grid = &mut self.grid[CHUNK_MUTATE_SIZE..];
+        let offset_grid = &mut self.grid[CHUNK_SIZE / 2..];
+        // For the next run, offset by half the chunk size
+        // Since the previous run covered half the tiles,
+        // this run will catch all the leftovers
         offset_grid.par_chunks_mut(CHUNK_SIZE).for_each(|slice| {
             for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
                 f(Chunk::new(slice), ChunkIndex::new(i));
             }
         });
+        // Note that we do *not* call the exact version this time.
+        // There is still one undersized chunk left over, but it's
+        // *just* the right size to keep our neighborhood guarantee,
+        // while still mutating all non-wall tiles.
     }
 
     pub fn apply_periodic_reactions(&mut self) {
