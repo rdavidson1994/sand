@@ -16,8 +16,8 @@ fn populate_world_bullet(world: &mut World) {
 
 #[allow(dead_code)]
 pub fn populate_world_water_bubble(world: &mut World) {
-    for x in 1..WORLD_WIDTH - 1 {
-        for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 1 {
+    for x in 2..WORLD_WIDTH - 2 {
+        for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 2 {
             world[point(x, y)] = Some(Tile::new(
                 ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },

@@ -1,8 +1,9 @@
 use crate::element::{FIXED, FLUID};
 use crate::tile::Tile;
-use crate::world::PairwiseMutate;
+use crate::world::{CollisionSideEffectTable, PairwiseMutate};
 use crate::{above, adjacent_x, neighbors, raw_neighbors, WORLD_WIDTH};
 use rand::Rng;
+use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy, Debug)]
@@ -45,23 +46,54 @@ impl<'a, T> ChunkView<'a, T> {
 
 pub struct CollisionChunkView<'a, T> {
     chunk: &'a mut [T],
-    index_source: usize,
-    index_destination: usize,
+    /// Index of whichever particle has lower element id
+    first_index: usize,
+    /// Index of whichever particle has higher element id
+    second_index: usize,
 }
 
 impl<'a, T> CollisionChunkView<'a, T> {
-    pub fn source(&'a mut self) -> ChunkView<'a, T> {
-        ChunkView::new(self.chunk, self.index_source)
+    pub fn new(chunk: &'a mut [T], first_index: usize, second_index: usize) -> Self {
+        CollisionChunkView {
+            chunk,
+            first_index,
+            second_index,
+        }
     }
 
-    pub fn destination(&'a mut self) -> ChunkView<'a, T> {
-        ChunkView::new(self.chunk, self.index_destination)
+    /// A chunk view for the first particle
+    pub fn first(&'a mut self) -> ChunkView<'a, T> {
+        ChunkView::new(self.chunk, self.first_index)
+    }
+
+    /// A chunk view for the second particle
+    pub fn second(&'a mut self) -> ChunkView<'a, T> {
+        ChunkView::new(self.chunk, self.second_index)
+    }
+
+    /// Applies the given function to all neighboring indexes of the first particle,
+    /// excluding the first and second particles themselves.
+    pub fn for_neighbors_of_first(&mut self, mut f: impl FnMut(&mut T)) {
+        for i in raw_neighbors(self.first_index) {
+            if i != self.second_index {
+                f(&mut self.chunk[i]);
+            }
+        }
+    }
+
+    /// Applies the given function to all neighboring indexes of the second particle,
+    /// excluding the first and second particles themselves.
+    pub fn for_neighbors_of_second(&mut self, mut f: impl FnMut(&mut T)) {
+        for i in raw_neighbors(self.second_index) {
+            if i != self.first_index {
+                f(&mut self.chunk[i]);
+            }
+        }
     }
 }
 
 impl<'a, T> Index<ChunkIndex> for ChunkView<'a, T> {
     type Output = T;
-
     fn index(&self, index: ChunkIndex) -> &Self::Output {
         &self.chunk[index.0]
     }
@@ -73,13 +105,36 @@ impl<'a, T> IndexMut<ChunkIndex> for ChunkView<'a, T> {
     }
 }
 
+impl<'a, T> Index<ChunkIndex> for CollisionChunkView<'a, T> {
+    type Output = T;
+    fn index(&self, index: ChunkIndex) -> &Self::Output {
+        &self.chunk[index.0]
+    }
+}
+
+impl<'a, T> IndexMut<ChunkIndex> for CollisionChunkView<'a, T> {
+    fn index_mut(&mut self, index: ChunkIndex) -> &mut Self::Output {
+        &mut self.chunk[index.0]
+    }
+}
+
 pub struct Chunk<'a> {
     slice: &'a mut [Option<Tile>],
+    side_effects: &'a CollisionSideEffectTable,
 }
 
 impl<'a> Chunk<'a> {
-    pub fn new(slice: &mut [Option<Tile>]) -> Chunk {
-        Chunk { slice }
+    pub fn new<'r>(
+        slice: &'r mut [Option<Tile>],
+        side_effects: &'r HashMap<
+            (u8, u8),
+            fn(Tile, Tile, CollisionChunkView<Option<Tile>>) -> (Option<Tile>, Option<Tile>),
+        >,
+    ) -> Chunk<'r> {
+        Chunk {
+            slice,
+            side_effects,
+        }
     }
 
     pub fn swap(&mut self, i: usize, j: usize) {
@@ -136,8 +191,44 @@ impl<'a> Chunk<'a> {
                 }
                 // TODO: Reimplement collision reactions
                 // self.trigger_collision_reactions(source, destination);
-                // self.trigger_collision_side_effects(source, destination);
+                self.trigger_collision_side_effects(ChunkIndex(source), ChunkIndex(destination));
             }
+        }
+    }
+
+    pub fn trigger_collision_side_effects(
+        &mut self,
+        source: ChunkIndex,
+        destination: ChunkIndex,
+    ) -> bool {
+        // If we can't unwrap here, a collision occurred in empty space
+        let source_tile = self[source].unwrap();
+        let destination_tile = self[destination].unwrap();
+        let source_element_id = source_tile.element_id();
+        let destination_element_id = destination_tile.element_id();
+        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+        if let Some(reaction) = self.side_effects.get(&(first_element_id, last_element_id)) {
+            if first_element_id == source_element_id {
+                let (source_after, destination_after) = reaction(
+                    source_tile,
+                    destination_tile,
+                    CollisionChunkView::new(self.slice, source.0, destination.0),
+                );
+                self[source] = source_after;
+                self[destination] = destination_after;
+            } else {
+                let (destination_after, source_after) = reaction(
+                    destination_tile,
+                    source_tile,
+                    CollisionChunkView::new(self.slice, destination.0, source.0),
+                );
+                self[source] = source_after;
+                self[destination] = destination_after;
+            }
+            true
+        } else {
+            false
         }
     }
 

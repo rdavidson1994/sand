@@ -54,11 +54,10 @@ pub struct FireElementSetup;
 impl ElementSetup for FireElementSetup {
     fn register_reactions(&self, world: &mut World) {
         // Fire burns sand
-        world.register_collision_side_effect(&SAND, &FIRE, |world, i_other, _i_fire| {
+        world.add_collision_side_effect(&SAND, &FIRE, |mut sand, fire, mut world| {
             let mut rng = thread_rng();
-            let (other, mut neighbors) = world.mutate_neighbors(i_other);
-            other.set_element(FIRE.id());
-            neighbors.for_each(|square| match square {
+            sand.set_element(FIRE.id());
+            world.for_neighbors_of_first(|square| match square {
                 Some(tile) => {
                     tile.paused = false;
                 }
@@ -77,24 +76,18 @@ impl ElementSetup for FireElementSetup {
                     ));
                 }
             });
+            (Some(sand), Some(fire))
         });
 
-        // // Water extinguishes fire
-        // world.register_collision_reaction(&FIRE, &WATER, |_water_tile, fire_tile| {
-        //     println!("{}", fire_tirle.get_element().id);
-        //     fire_tile.set_element(ASH.id());
-        // });
-        // Water extinguishes fire
-        world.register_collision_side_effect(&FIRE, &WATER, |world, i_fire, _i_water| {
-            let mut make_ash = false;
-            if let Some(fire) = &mut world[i_fire] {
-                if fire.special_info() == MAKES_ASH {
-                    fire.set_element(ASH.id());
-                    make_ash = true;
-                }
-            }
-            if !make_ash {
-                world[i_fire] = None;
+        world.add_collision_side_effect(&FIRE, &WATER, |mut fire, water, _world| {
+            if fire.special_info() == MAKES_ASH {
+                fire.set_element(ASH.id());
+                // If this fire tile will make ash,
+                // It transforms into ash
+                (Some(fire), Some(water))
+            } else {
+                // Otherwise it's deleted
+                (None, Some(water))
             }
         });
     }

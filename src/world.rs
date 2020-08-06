@@ -1,6 +1,5 @@
 use crate::chunk_view::{Chunk, ChunkIndex};
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
-use crate::metal::{ELECTRON, METAL};
 use crate::tile::{ElementState, Tile};
 use crate::{
     above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
@@ -8,14 +7,17 @@ use crate::{
 };
 use rand::Rng;
 use rayon::prelude::*;
+use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
 
+pub type CollisionSideEffectTable = HashMap<(u8, u8), CollisionSideEffect>;
+
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
-    collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
-    collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
+    collision_side_effects: CollisionSideEffectTable,
+    collision_reactions: HashMap<(u8, u8), CollisionReaction>,
 }
 
 pub struct Neighborhood<'a, T> {
@@ -151,7 +153,7 @@ impl World {
                     self.swap(source, destination);
                 }
                 self.trigger_collision_reactions(source, destination);
-                self.trigger_collision_side_effects(source, destination);
+                //self.trigger_collision_side_effects(source, destination);
             }
         }
     }
@@ -224,16 +226,20 @@ impl World {
         // Anything prior, and we don't have the point's full Moore neighborhood
         // contained inside the chunk
         const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
+        let collision_side_effects = &self.collision_side_effects;
         self.grid
             .par_chunks_exact_mut(CHUNK_SIZE)
             .for_each(|slice| {
                 for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
-                    f(Chunk::new(slice), ChunkIndex::new(i));
+                    f(
+                        Chunk::new(slice, collision_side_effects),
+                        ChunkIndex::new(i),
+                    );
                 }
             });
         // Calling the exact version of this method is important -
         // Otherwise we end up with a useless half-sized chunk at the end
-        // which can't keep our gaurantee about the Moore neighborhood
+        // which can't keep our guarantee about the Moore neighborhood
 
         let offset_grid = &mut self.grid[CHUNK_SIZE / 2..];
         // For the next run, offset by half the chunk size
@@ -241,7 +247,10 @@ impl World {
         // this run will catch all the leftovers
         offset_grid.par_chunks_mut(CHUNK_SIZE).for_each(|slice| {
             for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
-                f(Chunk::new(slice), ChunkIndex::new(i));
+                f(
+                    Chunk::new(slice, collision_side_effects),
+                    ChunkIndex::new(i),
+                );
             }
         });
         // Note that we do *not* call the exact version this time.
@@ -292,11 +301,11 @@ impl World {
         }
     }
 
-    pub fn register_collision_side_effect(
+    pub fn add_collision_side_effect(
         &mut self,
         element1: &Element,
         element2: &Element,
-        side_effect: fn(&mut World, usize, usize),
+        side_effect: CollisionSideEffect,
     ) {
         let first_id = element1.id;
         let second_id = element2.id;
@@ -318,26 +327,26 @@ impl World {
         }
     }
 
-    fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
-        // If we can't unwrap here, a collision occurred in empty space
-        let source_element_id = self[source].as_ref().unwrap().get_element().id;
-        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self
-            .collision_side_effects
-            .get_mut(&(first_element_id, last_element_id))
-        {
-            if first_element_id == source_element_id {
-                reaction(self, source, destination);
-            } else {
-                reaction(self, destination, source);
-            }
-            true
-        } else {
-            false
-        }
-    }
+    // fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
+    //     // If we can't unwrap here, a collision occurred in empty space
+    //     let source_element_id = self[source].as_ref().unwrap().get_element().id;
+    //     let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
+    //     let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+    //     let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+    //     if let Some(reaction) = self
+    //         .collision_side_effects
+    //         .get_mut(&(first_element_id, last_element_id))
+    //     {
+    //         if first_element_id == source_element_id {
+    //             reaction(self, source, destination);
+    //         } else {
+    //             reaction(self, destination, source);
+    //         }
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 
     fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
         let source_element_id = self[source].as_ref().unwrap().get_element().id;

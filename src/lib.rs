@@ -24,7 +24,6 @@ use crate::world::World;
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
-use std::collections::VecDeque;
 
 lazy_static! {
     pub static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
@@ -64,7 +63,7 @@ const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
-const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
+//const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
 const GRAVITY_PERIOD: i32 = 20;
 const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
@@ -76,6 +75,7 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use crate::chunk_view::CollisionChunkView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
@@ -208,17 +208,15 @@ fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
 
-type CollisionSideEffect = fn(&mut World, usize, usize);
+type CollisionSideEffect =
+    fn(Tile, Tile, CollisionChunkView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
 type CollisionReaction = fn(&mut Tile, &mut Tile);
 
 struct App {
     gl: GlGraphics,
     time_balance: f64,
-    frame_balance: i32,
     turn: i32,
     world: World,
-    motion_queue: VecDeque<(usize, usize)>,
-    needs_render: bool,
 }
 
 impl App {
@@ -330,10 +328,7 @@ pub fn game_loop() {
         world,
         gl: GlGraphics::new(open_gl),
         time_balance: 0.0,
-        frame_balance: 0,
         turn: 0,
-        motion_queue: VecDeque::new(),
-        needs_render: true,
     };
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
     let mut drawing = false;

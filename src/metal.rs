@@ -60,11 +60,9 @@ pub static ELECTRON: Element = Element {
 pub struct ElectronSetup;
 impl ElementSetup for ElectronSetup {
     fn register_reactions(&self, world: &mut World) {
-        world.register_collision_side_effect(&METAL, &ELECTRON, |world, i_metal, i_elec| {
-            if let Some(metal_tile) = &mut world[i_metal] {
-                metal_tile.edit_state(METAL.id(), CHARGED_HEAD);
-            }
-            world[i_elec] = None;
+        world.add_collision_side_effect(&METAL, &ELECTRON, |mut metal, _electron, _world| {
+            metal.edit_state(METAL.id(), CHARGED_HEAD);
+            (Some(metal), None)
         });
     }
 

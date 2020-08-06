@@ -5,6 +5,7 @@ use std::fmt::Display;
 
 mod element_state;
 use crate::element::{EFlag, Element, ElementId, SpecialElementInfo, PERFECT_RESTITUTION};
+use crate::simple_elements::WALL;
 use crate::ELEMENTS;
 pub use element_state::*;
 
@@ -49,6 +50,9 @@ impl Tile {
     }
 
     pub fn set_element(&mut self, element: ElementId) {
+        if self.element_id() == WALL.id {
+            panic!("GOTCHA!");
+        }
         self.element_data.stage(ElementState::default(element)); // = ElementData::new(ElementState::new(element));
     }
 
