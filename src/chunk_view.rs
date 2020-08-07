@@ -1,9 +1,8 @@
 use crate::element::{FIXED, FLUID};
 use crate::tile::Tile;
-use crate::world::{CollisionSideEffectTable, PairwiseMutate};
+use crate::world::{CollisionReactionTable, CollisionSideEffectTable, PairwiseMutate};
 use crate::{above, adjacent_x, neighbors, raw_neighbors, WORLD_WIDTH};
 use rand::Rng;
-use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy, Debug)]
@@ -121,19 +120,19 @@ impl<'a, T> IndexMut<ChunkIndex> for CollisionChunkView<'a, T> {
 pub struct Chunk<'a> {
     slice: &'a mut [Option<Tile>],
     side_effects: &'a CollisionSideEffectTable,
+    collision_reactions: &'a CollisionReactionTable,
 }
 
 impl<'a> Chunk<'a> {
     pub fn new<'r>(
         slice: &'r mut [Option<Tile>],
-        side_effects: &'r HashMap<
-            (u8, u8),
-            fn(Tile, Tile, CollisionChunkView<Option<Tile>>) -> (Option<Tile>, Option<Tile>),
-        >,
+        side_effects: &'r CollisionSideEffectTable,
+        collision_reactions: &'r CollisionReactionTable,
     ) -> Chunk<'r> {
         Chunk {
             slice,
             side_effects,
+            collision_reactions,
         }
     }
 
@@ -208,28 +207,36 @@ impl<'a> Chunk<'a> {
         let destination_element_id = destination_tile.element_id();
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self.side_effects.get(&(first_element_id, last_element_id)) {
-            if first_element_id == source_element_id {
-                let (source_after, destination_after) = reaction(
-                    source_tile,
-                    destination_tile,
-                    CollisionChunkView::new(self.slice, source.0, destination.0),
-                );
-                self[source] = source_after;
-                self[destination] = destination_after;
+        let (first_tile, second_tile, first_index, second_index) =
+            if source_element_id == first_element_id {
+                (source_tile, destination_tile, source, destination)
             } else {
-                let (destination_after, source_after) = reaction(
-                    destination_tile,
-                    source_tile,
-                    CollisionChunkView::new(self.slice, destination.0, source.0),
-                );
-                self[source] = source_after;
-                self[destination] = destination_after;
-            }
-            true
-        } else {
-            false
+                (destination_tile, source_tile, destination, source)
+            };
+
+        if let Some(reaction) = self
+            .side_effects // rustfmt-skip
+            .get(&(first_element_id, last_element_id))
+        {
+            let (first_after, second_after) = reaction(
+                first_tile,
+                second_tile,
+                CollisionChunkView::new(self.slice, first_index.0, second_index.0),
+            );
+            self[first_index] = first_after;
+            self[second_index] = second_after;
+            return true;
         }
+        if let Some(reaction) = self
+            .collision_reactions // rustfmt-skip
+            .get(&(first_element_id, last_element_id))
+        {
+            let (first_after, second_after) = reaction(first_tile, second_tile);
+            self[first_index] = first_after;
+            self[second_index] = second_after;
+            return true;
+        }
+        return false;
     }
 
     pub fn create_view(&mut self, index: ChunkIndex) -> ChunkView<Option<Tile>> {

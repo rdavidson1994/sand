@@ -49,9 +49,9 @@ pub struct LavaSetup;
 impl ElementSetup for LavaSetup {
     fn register_reactions(&self, world: &mut World) {
         // Lava melts metal
-        world.register_collision_reaction(&METAL, &LAVA, |metal, _lava| {
-            metal.get_element().id;
+        world.register_collision_reaction(&METAL, &LAVA, |mut metal, lava| {
             metal.set_element(LAVA.id());
+            (Some(metal), Some(lava))
         })
     }
 

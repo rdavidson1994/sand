@@ -210,7 +210,7 @@ fn point(x: i32, y: i32) -> usize {
 
 type CollisionSideEffect =
     fn(Tile, Tile, CollisionChunkView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
-type CollisionReaction = fn(&mut Tile, &mut Tile);
+type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 struct App {
     gl: GlGraphics,
