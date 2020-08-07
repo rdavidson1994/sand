@@ -63,11 +63,10 @@ const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
-//const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
+const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 20;
 const GRAVITY_PERIOD: i32 = 20;
 const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
-const SECONDS_PER_LOGICAL_FRAME: f64 = 1.0 / 1400.0; // Based on square = 1inch
 
 //graphics imports
 extern crate glutin_window;
@@ -214,7 +213,6 @@ type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 struct App {
     gl: GlGraphics,
-    time_balance: f64,
     turn: i32,
     world: World,
 }
@@ -249,11 +247,9 @@ impl App {
         });
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
-        self.time_balance += args.dt;
-        let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
+    fn update(&mut self, _args: &UpdateArgs) {
         let mut i = 0;
-        while i < frames_to_render.trunc() as i32 {
+        while i < LOGICAL_FRAMES_PER_DISPLAY_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
                 self.world.apply_gravity();
@@ -265,11 +261,6 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        self.time_balance = self.time_balance.trunc(); //(i as f64) * SECONDS_PER_LOGICAL_FRAME;
-                                                       // if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
-                                                       //     self.needs_render = true;
-                                                       //     //self.frame_balance = 0;
-                                                       // }
     }
 }
 
@@ -327,7 +318,6 @@ pub fn game_loop() {
     let mut app = App {
         world,
         gl: GlGraphics::new(open_gl),
-        time_balance: 0.0,
         turn: 0,
     };
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
