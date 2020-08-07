@@ -50,9 +50,6 @@ impl Tile {
     }
 
     pub fn set_element(&mut self, element: ElementId) {
-        if self.element_id() == WALL.id {
-            panic!("GOTCHA!");
-        }
         self.element_data.stage(ElementState::default(element)); // = ElementData::new(ElementState::new(element));
     }
 
