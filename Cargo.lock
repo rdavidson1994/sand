@@ -1222,6 +1222,7 @@ dependencies = [
  "piston2d-opengl_graphics",
  "pistoncore-glutin_window",
  "rand",
+ "rayon",
 ]
 
 [[package]]

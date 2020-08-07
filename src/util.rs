@@ -17,8 +17,8 @@ fn populate_world_bullet(world: &mut World) {
 
 #[allow(dead_code)]
 pub fn populate_world_water_bubble(world: &mut World) {
-    for x in 1..WORLD_WIDTH - 1 {
-        for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 1 {
+    for x in 2..WORLD_WIDTH - 2 {
+        for y in WORLD_HEIGHT - 20..WORLD_HEIGHT - 2 {
             world[point(x, y)] = Some(Tile::new(
                 ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },
@@ -73,14 +73,18 @@ pub fn populate_world_pileup(world: &mut World) {
 }
 
 pub fn create_walls(world: &mut World) {
+    let wall_tile = Some(Tile::stationary(ElementState::default(WALL.id())));
     for i in 0..WORLD_WIDTH {
-        world[point(i, 0)] = Some(Tile::stationary(ElementState::default(WALL.id())));
-        world[point(i, WORLD_HEIGHT - 1)] =
-            Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(i, 0)] = wall_tile;
+        world[point(i, WORLD_HEIGHT - 1)] = wall_tile;
+        world[point(i, 1)] = wall_tile;
+        world[point(i, WORLD_HEIGHT - 2)] = wall_tile;
     }
     for i in 0..WORLD_HEIGHT {
-        world[point(0, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
-        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(0, i)] = wall_tile;
+        world[point(WORLD_WIDTH - 1, i)] = wall_tile;
+        world[point(1, i)] = wall_tile;
+        world[point(WORLD_WIDTH - 2, i)] = wall_tile;
     }
 }
 

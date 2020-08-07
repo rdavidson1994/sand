@@ -1,3 +1,4 @@
+use crate::chunk_view::{Chunk, ChunkIndex};
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::{
@@ -5,14 +6,19 @@ use crate::{
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
 use rand::Rng;
+use rayon::prelude::*;
+use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
 
+pub type CollisionSideEffectTable = HashMap<(u8, u8), CollisionSideEffect>;
+pub type CollisionReactionTable = HashMap<(u8, u8), CollisionReaction>;
+
 pub struct World {
     grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
-    collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
-    collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
+    collision_side_effects: CollisionSideEffectTable,
+    collision_reactions: CollisionReactionTable,
 }
 
 pub struct Neighborhood<'a, T> {
@@ -51,7 +57,7 @@ fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, Neighborhoo
     (&mut center[0], Neighborhood::new(before, after))
 }
 
-trait PairwiseMutate {
+pub trait PairwiseMutate {
     type T;
     fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T);
 }
@@ -98,6 +104,11 @@ impl World {
 
     pub fn swap(&mut self, i: usize, j: usize) {
         self.grid.swap(i, j);
+        if let Some(above_source) = above(i) {
+            if let Some(tile) = &mut self[above_source] {
+                tile.paused = false;
+            }
+        }
     }
 
     pub fn neighbor_count(&self, i: usize, predicate: impl Fn(&Tile) -> bool) -> usize {
@@ -137,13 +148,11 @@ impl World {
                         s.elastic_collide_y(d);
                     }
                 }
+                d.paused = false;
                 if d.has_flag(FLUID) && rand::thread_rng().gen_range(0, 2) == 0 {
                     // Fluids don't collide, they just push through
                     self.swap(source, destination);
                 }
-                self.unpause(destination);
-                self.trigger_collision_reactions(source, destination);
-                self.trigger_collision_side_effects(source, destination);
             }
         }
     }
@@ -184,38 +193,93 @@ impl World {
     }
 
     pub fn apply_gravity(&mut self) {
-        for i in 0..WORLD_SIZE as usize {
-            match &mut self[i] {
-                Some(ref mut tile) => {
-                    if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
-                        tile.velocity.y = tile.velocity.y.saturating_add(1);
-                    }
+        self.grid.par_iter_mut().for_each(|square| match square {
+            Some(ref mut tile) => {
+                if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
+                    tile.velocity.y = tile.velocity.y.saturating_add(1);
                 }
-                None => {}
             }
-        }
+            None => {}
+        })
+    }
+
+    /// Calls the function once for each tile between the initial and final wall segments
+    /// The function receives a mutable chunk and an index into the chunk
+    /// The chunk is guaranteed to contain enough tiles to access the given index's
+    /// Moore neighborhood of radius 2 (i.e. up to 2 tiles away orthogonally or diagonally)
+    pub fn chunked_for_each(&mut self, f: impl Fn(Chunk, ChunkIndex) + Sync + Send) {
+        const CHUNK_MUTATE_HEIGHT: usize = 10;
+        // Each thread will mutate 10 rows of the world at a time
+        const CHUNK_HEIGHT: usize = CHUNK_MUTATE_HEIGHT * 2;
+        // To give a "buffer" to ensure that the whole Moore neighborhood is inside the chunk,
+        // We will actually borrow a chunk of twice that height.
+        const CHUNK_SIZE: usize = CHUNK_HEIGHT * WORLD_WIDTH as usize;
+        const CHUNK_MUTATE_SIZE: usize = CHUNK_MUTATE_HEIGHT * WORLD_WIDTH as usize - 4;
+        // Why -4?
+        // We *could* simply mutate a full CHUNK_MUTATE_HEIGHT * WORLD_WIDTH
+        // but subtracting 4 leaves out a few wall tiles, and more importantly
+        // preserves our guarantee about Moore neighborhoods for the final,
+        // undersized chunk in the second para_chunks_mut call.
+        const CHUNK_MUTATE_START: usize = (2 * WORLD_WIDTH + 2) as usize;
+        // CHUNK_MUTATE_START is the first "safe" index in the chunk to touch.
+        // Anything prior, and we don't have the point's full Moore neighborhood
+        // contained inside the chunk
+        const CHUNK_MUTATE_END: usize = CHUNK_MUTATE_START + CHUNK_MUTATE_SIZE;
+        let collision_side_effects = &self.collision_side_effects;
+        let collision_reactions = &self.collision_reactions;
+        self.grid
+            .par_chunks_exact_mut(CHUNK_SIZE)
+            .for_each(|slice| {
+                for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
+                    f(
+                        Chunk::new(slice, collision_side_effects, collision_reactions),
+                        ChunkIndex::new(i),
+                    );
+                }
+            });
+        // Calling the exact version of this method is important -
+        // Otherwise we end up with a useless half-sized chunk at the end
+        // which can't keep our guarantee about the Moore neighborhood
+
+        let offset_grid = &mut self.grid[CHUNK_SIZE / 2..];
+        // For the next run, offset by half the chunk size
+        // Since the previous run covered half the tiles,
+        // this run will catch all the leftovers
+        offset_grid.par_chunks_mut(CHUNK_SIZE).for_each(|slice| {
+            for i in CHUNK_MUTATE_START..CHUNK_MUTATE_END {
+                f(
+                    Chunk::new(slice, collision_side_effects, collision_reactions),
+                    ChunkIndex::new(i),
+                );
+            }
+        });
+        // Note that we do *not* call the exact version this time.
+        // There is still one undersized chunk left over, but it's
+        // *just* the right size to keep our neighborhood guarantee,
+        // while still mutating all non-wall tiles.
     }
 
     pub fn apply_periodic_reactions(&mut self) {
-        for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &mut self[i] {
+        self.chunked_for_each(|mut chunk, i| {
+            if let Some(tile) = &mut chunk[i] {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
-                    reaction(self, i);
+                    chunk[i] = reaction(*tile, chunk.create_view(i));
                 }
             }
-        }
-        for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &mut self[i] {
+        });
+
+        self.grid.par_iter_mut().for_each(|square| {
+            if let Some(tile) = square {
                 tile.save_state();
             }
-        }
+        });
     }
 
     pub fn register_collision_reaction(
         &mut self,
         element1: &Element,
         element2: &Element,
-        reaction: fn(&mut Tile, &mut Tile),
+        reaction: CollisionReaction,
     ) {
         let first_id = element1.id;
         let second_id = element2.id;
@@ -237,11 +301,11 @@ impl World {
         }
     }
 
-    pub fn register_collision_side_effect(
+    pub fn add_collision_side_effect(
         &mut self,
         element1: &Element,
         element2: &Element,
-        side_effect: fn(&mut World, usize, usize),
+        side_effect: CollisionSideEffect,
     ) {
         let first_id = element1.id;
         let second_id = element2.id;
@@ -263,53 +327,7 @@ impl World {
         }
     }
 
-    fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
-        // If we can't unwrap here, a collision occurred in empty space
-        let source_element_id = self[source].as_ref().unwrap().get_element().id;
-        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self
-            .collision_side_effects
-            .get_mut(&(first_element_id, last_element_id))
-        {
-            if first_element_id == source_element_id {
-                reaction(self, source, destination);
-            } else {
-                reaction(self, destination, source);
-            }
-            true
-        } else {
-            false
-        }
-    }
-
-    fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
-        let source_element_id = self[source].as_ref().unwrap().get_element().id;
-        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self
-            .collision_reactions
-            .get_mut(&(first_element_id, last_element_id))
-        {
-            let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
-            let (source_tile, destination_tile) = (
-                source_option.as_mut().unwrap(),
-                destination_option.as_mut().unwrap(),
-            );
-            if first_element_id == source_element_id {
-                reaction(source_tile, destination_tile);
-            } else {
-                reaction(destination_tile, source_tile);
-            }
-            true
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn mutate_pair(
+    pub fn mutate_pair(
         &mut self,
         first: usize,
         second: usize,

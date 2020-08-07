@@ -1,6 +1,5 @@
 use crate::element::{Element, PAUSE_EXEMPT, PERFECT_RESTITUTION};
 use crate::fire::FIRE;
-use crate::neighbors;
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile};
 use crate::Vector;
@@ -22,18 +21,17 @@ pub static GAS: Element = Element {
     color: [1.0, 0.5, 1.0, 1.0],
     mass: 3,
     id: 3,
-    periodic_reaction: Some(|world, i| {
+    periodic_reaction: Some(|mut this, mut world| {
         let mut will_explode = false;
-        for j in neighbors(i) {
-            if let Some(tile) = &mut world[j] {
+        world.for_each_neighbor(|opt_tile| {
+            if let Some(tile) = opt_tile {
                 if tile.element_id() == FIRE.id {
                     will_explode = true;
-                    break;
                 }
             }
-        }
+        });
         if will_explode {
-            for (j, delta_v) in neighbors(i).zip(EXPLOSION_VECTORS.iter()) {
+            for (j, delta_v) in world.neighbors().zip(EXPLOSION_VECTORS.iter()) {
                 let mut new_tile = match world[j].take() {
                     Some(existing_tile) => existing_tile,
                     None => Tile::new(
@@ -47,10 +45,9 @@ pub static GAS: Element = Element {
                 new_tile.velocity.y = new_tile.velocity.x.saturating_add(delta_v.1);
                 world[j] = Some(new_tile);
             }
-            if let Some(this_tile) = &mut world[i] {
-                this_tile.set_element(FIRE.id());
-            }
+            this.set_element(FIRE.id());
         }
+        Some(this)
     }),
     ..ELEMENT_DEFAULT
 };

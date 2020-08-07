@@ -1,4 +1,6 @@
 /target
 run.cmd
 /.idea/
+/src/.idea/
 /todo
+/.vscode/

@@ -1,3 +1,4 @@
+mod chunk_view;
 mod element;
 mod fire;
 mod gas;
@@ -23,7 +24,6 @@ use crate::world::World;
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
-use std::collections::VecDeque;
 
 lazy_static! {
     pub static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
@@ -57,23 +57,24 @@ lazy_static! {
     };
 }
 
-const WORLD_WIDTH: i32 = 200;
-const WORLD_HEIGHT: i32 = 200;
+const WORLD_WIDTH: i32 = 204;
+const WORLD_HEIGHT: i32 = 204;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
-const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
+const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 20;
 const GRAVITY_PERIOD: i32 = 20;
 const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
-const SECONDS_PER_LOGICAL_FRAME: f64 = 1.0 / 1400.0; // Based on square = 1inch
-                                                     //graphics imports
+
+//graphics imports
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use crate::chunk_view::CollisionChunkView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventSettings, Events};
@@ -82,6 +83,7 @@ use piston::input::{
     UpdateArgs, UpdateEvent,
 };
 use piston::window::WindowSettings;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn in_bounds(x: i32, y: i32) -> bool {
     x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT
@@ -156,20 +158,26 @@ pub fn neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
 }
 
-fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
-    let mut needs_update = false;
-    // This makes more sense at the end, but borrowck didn't like it
-    // maybe check it later?
-    motion_queue.clear();
-    for i in 0..WORLD_SIZE as usize {
-        if let Some(ref mut tile) = &mut world[i] {
+pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
+    let x = index as i32 % WORLD_WIDTH;
+    let y = index as i32 / WORLD_WIDTH;
+    iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
+        .filter(|&tuple| tuple != (0, 0)) // exclude same tile
+        .map(move |(dx, dy)| (x + dx, y + dy)) // exclude tiles outside world bounds
+        .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
+}
+
+fn apply_velocity(world: &mut World) -> bool {
+    let needs_update = AtomicBool::new(false);
+    world.chunked_for_each(|mut chunk, i| {
+        if let Some(ref mut tile) = &mut chunk[i] {
             if !tile.paused && !tile.has_flag(FIXED) {
                 let (new_x, overflowed_x) = tile.position.x.overflowing_add(tile.velocity.x);
                 let (new_y, overflowed_y) = tile.position.y.overflowing_add(tile.velocity.y);
                 tile.position.x = new_x;
                 tile.position.y = new_y;
                 if overflowed_x || overflowed_y {
-                    needs_update = true;
+                    needs_update.store(true, Ordering::Relaxed);
                     let delta_x = if overflowed_x {
                         tile.velocity.x.signum()
                     } else {
@@ -180,31 +188,12 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
                     } else {
                         0
                     };
-                    let (old_grid_x, old_grid_y) = coords(i);
-                    let (new_grid_x, new_grid_y) =
-                        (old_grid_x + delta_x as i32, old_grid_y + delta_y as i32);
-                    if in_bounds(new_grid_x, new_grid_y) {
-                        let swap_pair = (i, point(new_grid_x, new_grid_y));
-                        // this logic is to allow "trains" of adjacent particles
-                        // to travel smoothly and not knock each other
-                        if delta_y < 0 || (delta_y == 0 && delta_x < 0) {
-                            motion_queue.push_back(swap_pair);
-                        } else {
-                            motion_queue.push_front(swap_pair);
-                        }
-                    }
+                    chunk.move_particle(i, delta_x, delta_y);
                 }
             }
         }
-    }
-
-    for (i, j) in motion_queue {
-        assert!(in_bounds(coords(*i).0, coords(*i).1));
-        assert!(in_bounds(coords(*j).0, coords(*j).1));
-        world.move_particle(*i, *j);
-    }
-
-    needs_update
+    });
+    needs_update.load(Ordering::Relaxed)
 }
 
 fn coords(i: usize) -> (i32, i32) {
@@ -218,25 +207,18 @@ fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
 
-type CollisionSideEffect = fn(&mut World, usize, usize);
-type CollisionReaction = fn(&mut Tile, &mut Tile);
+type CollisionSideEffect =
+    fn(Tile, Tile, CollisionChunkView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
+type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 struct App {
     gl: GlGraphics,
-    time_balance: f64,
-    frame_balance: i32,
     turn: i32,
     world: World,
-    motion_queue: VecDeque<(usize, usize)>,
-    needs_render: bool,
 }
 
 impl App {
     fn render(&mut self, args: &RenderArgs) {
-        //println!("FPS: {}", 1.0/args.ext_dt);
-        if !self.needs_render {
-            return;
-        }
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -254,18 +236,20 @@ impl App {
                         (y * TILE_PIXELS) as f64,
                         TILE_PIXELS as f64,
                     );
+                    // let color = if tile.paused {
+                    //     [0.0, 0.0, 1.0, 1.0]
+                    // } else {
+                    //     [1.0, 0.0, 0.0, 1.0]
+                    // };
                     rectangle(*tile.color(), square, transform, gl);
                 }
             }
         });
-        self.needs_render = false;
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
-        self.time_balance += args.dt;
-        let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
+    fn update(&mut self, _args: &UpdateArgs) {
         let mut i = 0;
-        while i < frames_to_render.trunc() as i32 {
+        while i < LOGICAL_FRAMES_PER_DISPLAY_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
                 self.world.apply_gravity();
@@ -273,15 +257,9 @@ impl App {
             if self.turn % REACTION_PERIOD == 0 {
                 self.world.apply_periodic_reactions();
             }
-            apply_velocity(&mut self.world, &mut self.motion_queue);
+            apply_velocity(&mut self.world);
             self.turn += 1;
             i += 1;
-        }
-        self.time_balance -= (i as f64) * SECONDS_PER_LOGICAL_FRAME;
-        self.frame_balance += i;
-        if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
-            self.needs_render = true;
-            self.frame_balance = 0;
         }
     }
 }
@@ -328,11 +306,8 @@ pub fn game_loop() {
     let open_gl = OpenGL::V3_2;
     let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
 
-    //let mut i = 0;
     util::create_walls(&mut world);
     util::populate_world_water_bubble(&mut world);
-    //FireElementSetup.register_reactions(&mut world);
-
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new("Falling sand", size)
         .graphics_api(open_gl)
@@ -343,11 +318,7 @@ pub fn game_loop() {
     let mut app = App {
         world,
         gl: GlGraphics::new(open_gl),
-        time_balance: 0.0,
-        frame_balance: 0,
         turn: 0,
-        motion_queue: VecDeque::new(),
-        needs_render: true,
     };
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
     let mut drawing = false;
