@@ -334,34 +334,6 @@ impl World {
     ) -> (&mut Option<Tile>, &mut Option<Tile>) {
         self.grid.mutate_pair(first, second)
     }
-
-    // returns (center, neighbors)
-    // panics if self[index] is None
-    pub fn mutate_neighbors(&mut self, index: usize) -> (&mut Tile, Neighborhood<Option<Tile>>) {
-        let (center, nhood) = mutate_neighborhood(&mut *self.grid, index);
-        match center.as_mut() {
-            Some(mut_ref_tile) => (mut_ref_tile, nhood),
-            None => panic!("Attempted to mutate the neighbors of an empty square."),
-        }
-    }
-
-    pub fn unpause(&mut self, initial_position: usize) {
-        let mut current_position = initial_position;
-        loop {
-            if let Some(ref mut tile) = self[current_position] {
-                if tile.paused {
-                    tile.paused = false;
-                    if let Some(new_position) = above(current_position) {
-                        current_position = new_position;
-                        // glorified goto lol
-                        continue;
-                    }
-                }
-            }
-            // if any condition fails, exit the loop
-            break;
-        }
-    }
 }
 
 #[test]
