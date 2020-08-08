@@ -234,8 +234,9 @@ struct App {
 impl App {
     fn render(&mut self, args: &RenderArgs) {
         //println!("FPS: {}", 1.0/args.ext_dt);
-        if !self.needs_render {
-            return;
+        let fps = (1.0 / args.ext_dt) as i32;
+        if fps < 70 {
+            println!("FPS! :{}", fps);
         }
         use graphics::*;
 
@@ -258,14 +259,11 @@ impl App {
                 }
             }
         });
-        self.needs_render = false;
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        self.time_balance += args.dt;
-        let frames_to_render = self.time_balance / SECONDS_PER_LOGICAL_FRAME;
         let mut i = 0;
-        while i < frames_to_render.trunc() as i32 {
+        while i < 20 {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
                 self.world.apply_gravity();
@@ -276,12 +274,6 @@ impl App {
             apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;
             i += 1;
-        }
-        self.time_balance -= (i as f64) * SECONDS_PER_LOGICAL_FRAME;
-        self.frame_balance += i;
-        if self.frame_balance > LOGICAL_FRAMES_PER_DISPLAY_FRAME {
-            self.needs_render = true;
-            self.frame_balance = 0;
         }
     }
 }
