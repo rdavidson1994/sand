@@ -294,7 +294,6 @@ impl Pen for ElementPen {
         }
     }
 }
-
 pub fn game_loop() {
     lazy_static_crate::initialize(&SETUPS);
     lazy_static_crate::initialize(&ELEMENTS);
@@ -307,7 +306,7 @@ pub fn game_loop() {
     let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
 
     util::create_walls(&mut world);
-    util::populate_world_water_bubble(&mut world);
+    util::populate_world_sand_drop(&mut world);
     // Create an Glutin window.
     let mut window: Window = WindowSettings::new("Falling sand", size)
         .graphics_api(open_gl)
