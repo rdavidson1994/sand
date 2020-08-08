@@ -290,21 +290,25 @@ impl Pen for ElementPen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64) {
         let x = x.trunc() as i32 / TILE_PIXELS;
         let y = y.trunc() as i32 / TILE_PIXELS;
-        let velocity = if self.element.has_flag(FIXED) {
-            Vector { x: 0, y: 0 }
-        } else {
-            Vector {
-                x: thread_rng().gen_range(-20, 21),
-                y: thread_rng().gen_range(-20, 21),
+        for x in x - 1..x + 1 {
+            for y in y - 1..y + 1 {
+                let velocity = if self.element.has_flag(FIXED) {
+                    Vector { x: 0, y: 0 }
+                } else {
+                    Vector {
+                        x: thread_rng().gen_range(-20, 21),
+                        y: thread_rng().gen_range(-20, 21),
+                    }
+                };
+                if in_bounds(x, y) && world[point(x, y)].is_none() {
+                    world[point(x, y)] = Some(Tile::new(
+                        ElementState::default(self.element.id()),
+                        Vector { x: 0, y: 0 },
+                        velocity,
+                        false,
+                    ))
+                }
             }
-        };
-        if in_bounds(x, y) && world[point(x, y)].is_none() {
-            world[point(x, y)] = Some(Tile::new(
-                ElementState::default(self.element.id()),
-                Vector { x: 0, y: 0 },
-                velocity,
-                false,
-            ))
         }
     }
 }
