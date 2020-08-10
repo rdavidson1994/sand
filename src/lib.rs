@@ -82,6 +82,7 @@ use piston::input::{
     UpdateArgs, UpdateEvent,
 };
 use piston::window::WindowSettings;
+use std::time::Instant;
 
 fn in_bounds(x: i32, y: i32) -> bool {
     x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT
@@ -236,7 +237,7 @@ impl App {
         //println!("FPS: {}", 1.0/args.ext_dt);
         let fps = (1.0 / args.ext_dt) as i32;
         if fps < 70 {
-            println!("FPS! :{}", fps);
+            //println!("FPS! :{}", fps);
         }
         use graphics::*;
 
@@ -263,6 +264,7 @@ impl App {
 
     fn update(&mut self, args: &UpdateArgs) {
         let mut i = 0;
+        let now = Instant::now();
         while i < 20 {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
@@ -274,6 +276,12 @@ impl App {
             apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;
             i += 1;
+        }
+        let ms = now.elapsed().as_millis();
+        let ups = 20 * 1000 / ms;
+        if ups < 1400 {
+            println!("{} ms", ms);
+            println!("{} updates per second", 20 * 1000 / ms);
         }
     }
 }
