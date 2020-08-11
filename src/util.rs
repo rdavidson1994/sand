@@ -11,7 +11,7 @@ fn populate_world_bullet(world: &mut World) {
         ElementState::default(GAS.id()),
         Vector { x: 0, y: 0 },
         Vector { x: 127, y: 0 },
-        false,
+        //false,
     ))
 }
 
@@ -23,7 +23,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
                 ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
-                true,
+                //true,
             ))
         }
     }
@@ -34,7 +34,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
                 ElementState::default(SAND.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
-                false,
+                //false,
             ))
         }
     }
@@ -49,7 +49,7 @@ pub fn populate_world_pileup(world: &mut World) {
                 ElementState::default(GAS.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
-                false,
+                //false,
             ))
         }
     }
@@ -66,7 +66,7 @@ pub fn populate_world_pileup(world: &mut World) {
                     x: -10,
                     y: 0, //10,
                 },
-                false,
+                //false,
             ))
         }
     }
@@ -105,7 +105,7 @@ fn populate_world(world: &mut World) {
                 x: rng.gen_range(-1, 1),
                 y: rng.gen_range(-1, 1),
             },
-            false,
+            //false,
         ))
     }
 }

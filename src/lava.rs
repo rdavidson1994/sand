@@ -30,7 +30,7 @@ pub static LAVA: Element = Element {
                             x: rand::thread_rng().gen_range(-10, 10),
                             y: rand::thread_rng().gen_range(-10, 10),
                         },
-                        false,
+                        //false,
                     ));
                     // Every time you create fire, roll to cool into rock
                     if rand::thread_rng().gen_range(0, 30) == 0 {

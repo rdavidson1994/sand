@@ -66,7 +66,7 @@ impl ElementSetup for FireElementSetup {
             other.set_element(FIRE.id());
             neighbors.for_each(|square| match square {
                 Some(tile) => {
-                    tile.paused = false;
+                    //tile.paused = false;
                 }
                 None => {
                     *square = Some(Tile::new(
@@ -79,7 +79,7 @@ impl ElementSetup for FireElementSetup {
                             x: rng.gen_range(-10, 10),
                             y: rng.gen_range(-10, 10),
                         },
-                        false,
+                        //false,
                     ));
                 }
             });

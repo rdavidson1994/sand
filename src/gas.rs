@@ -40,7 +40,7 @@ pub static GAS: Element = Element {
                         ElementState::default(FIRE.id()),
                         Vector { x: 0, y: 0 },
                         Vector { x: 0, y: 0 },
-                        false,
+                        //false,
                     ),
                 };
                 new_tile.velocity.x = new_tile.velocity.x.saturating_add(delta_v.0);

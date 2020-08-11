@@ -11,15 +11,21 @@ pub use element_state::*;
 const BASE_RESTITUTION: f64 = 0.5;
 const BASE_COLLIDE_RESTITUTION: f64 = 0.8;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Vector {
     pub x: i8,
     pub y: i8,
 }
 
+impl Vector {
+    pub fn is_zero(&self) -> bool {
+        self.x == 0 && self.y == 0
+    }
+}
+
 #[derive(Clone)]
 pub struct Tile {
-    pub paused: bool,
+    //pub paused: bool,
     pub velocity: Vector,
     pub position: Vector,
     element_data: ElementData,
@@ -30,11 +36,11 @@ impl Tile {
         element_state: ElementState,
         position: Vector,
         velocity: Vector,
-        paused: bool,
+        //paused: bool,
     ) -> Tile {
         Tile {
             element_data: ElementData::new(element_state),
-            paused,
+            //paused,
             position,
             velocity,
         }
@@ -42,7 +48,7 @@ impl Tile {
     pub fn stationary(element_state: ElementState) -> Tile {
         Tile {
             element_data: ElementData::new(element_state),
-            paused: false,
+            //paused: false,
             position: Vector { x: 0, y: 0 },
             velocity: Vector { x: 0, y: 0 },
         }

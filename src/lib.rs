@@ -17,7 +17,7 @@ use crate::glass::GLASS;
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
-use crate::tile::{ElementState, Tile, Vector};
+use crate::tile::{ElementData, ElementState, Tile, Vector};
 use crate::water::WATER;
 use crate::world::World;
 use itertools::{iproduct, Itertools};
@@ -60,10 +60,10 @@ lazy_static! {
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
-const TILE_PIXELS: i32 = 3;
+const TILE_PIXELS: i32 = 2;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
-const UPDATES_PER_FRAME: i32 = 20;
+const UPDATES_PER_FRAME: i32 = 40;
 const GRAVITY_PERIOD: i32 = 20;
 const REACTION_PERIOD: i32 = 1; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
@@ -164,7 +164,9 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     motion_queue.clear();
     for i in 0..WORLD_SIZE as usize {
         if let Some(ref mut tile) = &mut world[i] {
-            if !tile.paused && !tile.has_flag(FIXED) {
+            if
+            /* !tile.paused && */
+            !tile.has_flag(FIXED) {
                 let (new_x, overflowed_x) = tile.position.x.overflowing_add(tile.velocity.x);
                 let (new_y, overflowed_y) = tile.position.y.overflowing_add(tile.velocity.y);
                 tile.position.x = new_x;
@@ -224,12 +226,9 @@ type CollisionReaction = fn(&mut Tile, &mut Tile);
 
 struct App {
     gl: GlGraphics,
-    time_balance: f64,
-    frame_balance: i32,
     turn: i32,
     world: World,
     motion_queue: VecDeque<(usize, usize)>,
-    needs_render: bool,
 }
 
 impl App {
@@ -271,7 +270,7 @@ impl App {
 
     fn update(&mut self, args: &UpdateArgs) {
         let mut i = 0;
-        // let now = Instant::now();
+        let now = Instant::now();
         while i < UPDATES_PER_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
@@ -284,14 +283,14 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        // let ms = now.elapsed().as_millis();
-        // if ms != 0 {
-        //     let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
-        //     if ups < 600 {
-        //         println!("{} ms", ms);
-        //         println!("{} updates per second", ups);
-        //     }
-        // }
+        let ms = now.elapsed().as_millis();
+        if ms != 0 {
+            let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
+            if ups < 1200 {
+                println!("{} ms", ms);
+                println!("{} updates per second", ups);
+            }
+        }
     }
 }
 
@@ -322,7 +321,7 @@ impl Pen for ElementPen {
                         ElementState::default(self.element.id()),
                         Vector { x: 0, y: 0 },
                         velocity,
-                        false,
+                        //false,
                     ))
                 }
             }
@@ -356,11 +355,8 @@ pub fn game_loop() {
     let mut app = App {
         world,
         gl: GlGraphics::new(open_gl),
-        time_balance: 0.0,
-        frame_balance: 0,
         turn: 0,
         motion_queue: VecDeque::new(),
-        needs_render: true,
     };
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
     let mut drawing = false;
@@ -370,6 +366,16 @@ pub fn game_loop() {
         .max_fps(60)
         .ups(60)
         .ups_reset(0);
+
+    println!(
+        "size of element-data {}",
+        std::mem::size_of::<ElementData>()
+    );
+    println!("size of tile {}", std::mem::size_of::<Tile>());
+    println!(
+        "size of option tile {}",
+        std::mem::size_of::<Option<Tile>>()
+    );
 
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {

@@ -1,5 +1,5 @@
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
-use crate::tile::{ElementState, Tile};
+use crate::tile::{ElementState, Tile, Vector};
 use crate::{
     above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
@@ -151,7 +151,7 @@ impl World {
     pub fn has_stable_floor(&self, position: usize) -> bool {
         match crate::below(position) {
             Some(floor_position) => match &self[floor_position] {
-                Some(tile) => tile.has_flag(FIXED) || tile.paused,
+                Some(tile) => tile.has_flag(FIXED), // || tile.paused,
                 None => false,
             },
             None => true, // The bottom of the world counts as stable
@@ -162,8 +162,10 @@ impl World {
         for i in 0..WORLD_SIZE as usize {
             match &self[i] {
                 Some(tile) => {
-                    if tile.paused
-                        || tile.has_flag(PAUSE_EXEMPT)
+                    if
+                    /*tile.paused
+                    ||*/
+                    tile.has_flag(PAUSE_EXEMPT)
                         || tile.velocity.x.abs() > PAUSE_VELOCITY
                         || tile.velocity.y.abs() > PAUSE_VELOCITY
                         || !self.has_stable_floor(i)
@@ -177,7 +179,7 @@ impl World {
             }
             // Since we didn't continue to the next iteration, world[i] is not None
             let tile = self[i].as_mut().unwrap();
-            tile.paused = true;
+            //tile.paused = true;
             tile.velocity.x = 0;
             tile.velocity.y = 0;
         }
@@ -187,7 +189,7 @@ impl World {
         for i in 0..WORLD_SIZE as usize {
             match &mut self[i] {
                 Some(ref mut tile) => {
-                    if tile.has_flag(GRAVITY) && !tile.paused && !tile.has_flag(FIXED) {
+                    if tile.has_flag(GRAVITY) /*&& !tile.paused*/ && !tile.has_flag(FIXED) {
                         tile.velocity.y = tile.velocity.y.saturating_add(1);
                     }
                 }
@@ -328,21 +330,21 @@ impl World {
     }
 
     pub fn unpause(&mut self, initial_position: usize) {
-        let mut current_position = initial_position;
-        loop {
-            if let Some(ref mut tile) = self[current_position] {
-                if tile.paused {
-                    tile.paused = false;
-                    if let Some(new_position) = above(current_position) {
-                        current_position = new_position;
-                        // glorified goto lol
-                        continue;
-                    }
-                }
-            }
-            // if any condition fails, exit the loop
-            break;
-        }
+        // let mut current_position = initial_position;
+        // loop {
+        //     if let Some(ref mut tile) = self[current_position] {
+        //         if tile.paused {
+        //             tile.paused = false;
+        //             if let Some(new_position) = above(current_position) {
+        //                 current_position = new_position;
+        //                 // glorified goto lol
+        //                 continue;
+        //             }
+        //         }
+        //     }
+        //     // if any condition fails, exit the loop
+        //     break;
+        // }
     }
 }
 
