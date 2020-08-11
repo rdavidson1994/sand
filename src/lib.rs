@@ -57,18 +57,18 @@ lazy_static! {
     };
 }
 
-const WORLD_WIDTH: i32 = 300;
-const WORLD_HEIGHT: i32 = 300;
+const WORLD_WIDTH: i32 = 200;
+const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
-const TILE_PIXELS: i32 = 2;
+const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
-const LOGICAL_FRAMES_PER_DISPLAY_FRAME: i32 = 10;
+const UPDATES_PER_FRAME: i32 = 20;
 const GRAVITY_PERIOD: i32 = 20;
-const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
+const REACTION_PERIOD: i32 = 1; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
-const SECONDS_PER_LOGICAL_FRAME: f64 = 1.0 / 1400.0; // Based on square = 1inch
-                                                     //graphics imports
+// 1 frame = 20 updates
+// 1 second = 60 frames = 1200 updates
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
@@ -76,7 +76,7 @@ extern crate piston;
 
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
-use piston::event_loop::{EventSettings, Events};
+use piston::event_loop::{EventLoop, EventSettings, Events};
 use piston::input::{
     Button, ButtonEvent, ButtonState, Key, MouseButton, MouseCursorEvent, RenderArgs, RenderEvent,
     UpdateArgs, UpdateEvent,
@@ -234,11 +234,10 @@ struct App {
 
 impl App {
     fn render(&mut self, args: &RenderArgs) {
-        //println!("FPS: {}", 1.0/args.ext_dt);
-        let fps = (1.0 / args.ext_dt) as i32;
-        if fps < 70 {
-            //println!("FPS! :{}", fps);
-        }
+        // let fps = (1.0 / args.ext_dt) as i32;
+        // if fps < 50 {
+        //     println!("FPS! :{}", fps);
+        // }
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -256,6 +255,14 @@ impl App {
                         (y * TILE_PIXELS) as f64,
                         TILE_PIXELS as f64,
                     );
+                    // let color = {
+                    //     if tile.paused {
+                    //         [0.0, 1.0, 0.0, 1.0]
+                    //     } else {
+                    //         [1.0, 0.0, 0.0, 1.0]
+                    //     }
+                    // };
+                    // rectangle(color, square, transform, gl);
                     rectangle(*tile.color(), square, transform, gl);
                 }
             }
@@ -264,8 +271,8 @@ impl App {
 
     fn update(&mut self, args: &UpdateArgs) {
         let mut i = 0;
-        let now = Instant::now();
-        while i < 20 {
+        // let now = Instant::now();
+        while i < UPDATES_PER_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
                 self.world.apply_gravity();
@@ -277,12 +284,14 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        let ms = now.elapsed().as_millis();
-        let ups = 20 * 1000 / ms;
-        if ups < 1400 {
-            println!("{} ms", ms);
-            println!("{} updates per second", 20 * 1000 / ms);
-        }
+        // let ms = now.elapsed().as_millis();
+        // if ms != 0 {
+        //     let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
+        //     if ups < 600 {
+        //         println!("{} ms", ms);
+        //         println!("{} updates per second", ups);
+        //     }
+        // }
     }
 }
 
@@ -334,7 +343,7 @@ pub fn game_loop() {
 
     //let mut i = 0;
     util::create_walls(&mut world);
-    util::populate_world_water_bubble(&mut world);
+    //util::populate_world_water_bubble(&mut world);
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.
@@ -357,7 +366,11 @@ pub fn game_loop() {
     let mut drawing = false;
     let mut last_mouse_pos = (-1.0, -1.0);
 
-    let mut events = Events::new(EventSettings::new());
+    let mut events = Events::new(EventSettings::new())
+        .max_fps(60)
+        .ups(60)
+        .ups_reset(0);
+
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
