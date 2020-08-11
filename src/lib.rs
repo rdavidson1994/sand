@@ -10,7 +10,9 @@ mod util;
 mod water;
 mod world;
 
-use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
+use crate::element::{
+    Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED, PERFECT_RESTITUTION,
+};
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::GAS;
 use crate::glass::GLASS;
@@ -60,11 +62,11 @@ lazy_static! {
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
-const TILE_PIXELS: i32 = 2;
+const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
 const UPDATES_PER_FRAME: i32 = 40;
-const GRAVITY_PERIOD: i32 = 20;
+const GRAVITY_PERIOD: i32 = 10;
 const REACTION_PERIOD: i32 = 1; // This is still fast! :D It used to be 100!
 const PAUSE_VELOCITY: i8 = 3;
 // 1 frame = 20 updates
@@ -255,7 +257,7 @@ impl App {
                         TILE_PIXELS as f64,
                     );
                     // let color = {
-                    //     if tile.paused {
+                    //     if tile.velocity.is_zero() {
                     //         [0.0, 1.0, 0.0, 1.0]
                     //     } else {
                     //         [1.0, 0.0, 0.0, 1.0]
@@ -284,30 +286,33 @@ impl App {
             i += 1;
         }
         let ms = now.elapsed().as_millis();
-        if ms != 0 {
-            let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
-            if ups < 1200 {
-                println!("{} ms", ms);
-                println!("{} updates per second", ups);
-            }
-        }
+        // if ms != 0 {
+        //     let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
+        //     if ups < 1200 {
+        //         println!("{} ms", ms);
+        //         println!("{} updates per second", ups);
+        //     }
+        // }
     }
 }
 
 trait Pen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64);
+    fn get_radius(&self) -> i32;
+    fn set_radius(&mut self, radius: i32);
 }
 
 struct ElementPen {
     element: &'static Element,
+    radius: i32,
 }
 
 impl Pen for ElementPen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64) {
         let x = x.trunc() as i32 / TILE_PIXELS;
         let y = y.trunc() as i32 / TILE_PIXELS;
-        for x in x - 1..x + 1 {
-            for y in y - 1..y + 1 {
+        for x in x - self.radius..=x + self.radius {
+            for y in y - self.radius..=y + self.radius {
                 let velocity = if self.element.has_flag(FIXED) {
                     Vector { x: 0, y: 0 }
                 } else {
@@ -327,6 +332,14 @@ impl Pen for ElementPen {
             }
         }
     }
+
+    fn get_radius(&self) -> i32 {
+        self.radius
+    }
+
+    fn set_radius(&mut self, radius: i32) {
+        self.radius = radius
+    }
 }
 
 pub fn game_loop() {
@@ -342,7 +355,7 @@ pub fn game_loop() {
 
     //let mut i = 0;
     util::create_walls(&mut world);
-    //util::populate_world_water_bubble(&mut world);
+    util::populate_world_water_bubble(&mut world);
     //FireElementSetup.register_reactions(&mut world);
 
     // Create an Glutin window.
@@ -358,24 +371,17 @@ pub fn game_loop() {
         turn: 0,
         motion_queue: VecDeque::new(),
     };
-    let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen { element: &SAND });
+    let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen {
+        element: &SAND,
+        radius: 0,
+    });
     let mut drawing = false;
     let mut last_mouse_pos = (-1.0, -1.0);
 
     let mut events = Events::new(EventSettings::new())
         .max_fps(60)
         .ups(60)
-        .ups_reset(0);
-
-    println!(
-        "size of element-data {}",
-        std::mem::size_of::<ElementData>()
-    );
-    println!("size of tile {}", std::mem::size_of::<Tile>());
-    println!(
-        "size of option tile {}",
-        std::mem::size_of::<Option<Tile>>()
-    );
+        .ups_reset(10);
 
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
@@ -398,7 +404,7 @@ pub fn game_loop() {
                     }
                 },
                 Button::Keyboard(key) => {
-                    let element = match key {
+                    if let Some(element) = match key {
                         Key::D1 => Some(&SAND),
                         Key::D2 => Some(&FIRE),
                         Key::D3 => Some(&GAS),
@@ -410,9 +416,27 @@ pub fn game_loop() {
                         Key::D9 => Some(&LAVA),
                         Key::D0 => Some(&GLASS),
                         _ => None, // Key not recognized, do nothing
-                    };
-                    if let Some(element) = element {
-                        selected_pen = Box::new(ElementPen { element });
+                    } {
+                        selected_pen = Box::new(ElementPen {
+                            element,
+                            radius: selected_pen.get_radius(),
+                        });
+                    } else {
+                        match key {
+                            Key::RightBracket => {
+                                let radius = selected_pen.get_radius();
+                                if radius < 5 {
+                                    selected_pen.set_radius(radius + 1);
+                                }
+                            }
+                            Key::LeftBracket => {
+                                let radius = selected_pen.get_radius();
+                                if radius > 0 {
+                                    selected_pen.set_radius(radius - 1);
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 _ => {}

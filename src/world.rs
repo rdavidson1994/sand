@@ -151,7 +151,7 @@ impl World {
     pub fn has_stable_floor(&self, position: usize) -> bool {
         match crate::below(position) {
             Some(floor_position) => match &self[floor_position] {
-                Some(tile) => tile.has_flag(FIXED), // || tile.paused,
+                Some(tile) => tile.has_flag(FIXED) || tile.velocity.is_zero(),
                 None => false,
             },
             None => true, // The bottom of the world counts as stable
@@ -161,6 +161,9 @@ impl World {
     pub fn pause_particles(&mut self) {
         for i in 0..WORLD_SIZE as usize {
             match &self[i] {
+                None => {
+                    continue;
+                }
                 Some(tile) => {
                     if
                     /*tile.paused
@@ -173,9 +176,6 @@ impl World {
                         continue;
                     }
                 }
-                None => {
-                    continue;
-                }
             }
             // Since we didn't continue to the next iteration, world[i] is not None
             let tile = self[i].as_mut().unwrap();
@@ -187,9 +187,12 @@ impl World {
 
     pub fn apply_gravity(&mut self) {
         for i in 0..WORLD_SIZE as usize {
+            if self.has_stable_floor(i) {
+                continue;
+            }
             match &mut self[i] {
                 Some(ref mut tile) => {
-                    if tile.has_flag(GRAVITY) /*&& !tile.paused*/ && !tile.has_flag(FIXED) {
+                    if tile.has_flag(GRAVITY) && !tile.has_flag(FIXED) {
                         tile.velocity.y = tile.velocity.y.saturating_add(1);
                     }
                 }

@@ -11,7 +11,7 @@ pub const NO_ASH: u8 = 1;
 pub const MAKES_ASH: u8 = 2;
 
 pub static ASH: Element = Element {
-    flags: GRAVITY | PERFECT_RESTITUTION,
+    flags: GRAVITY,
     color: [0.1, 0.1, 0.1, 1.0],
     mass: 3,
     id: 5,
@@ -87,7 +87,7 @@ impl ElementSetup for FireElementSetup {
 
         // // Water extinguishes fire
         // world.register_collision_reaction(&FIRE, &WATER, |_water_tile, fire_tile| {
-        //     println!("{}", fire_tirle.get_element().id);
+        //     println!("{}", fire_tile.get_element().id);
         //     fire_tile.set_element(ASH.id());
         // });
         // Water extinguishes fire
