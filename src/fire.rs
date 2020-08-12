@@ -1,4 +1,4 @@
-use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS, PERFECT_RESTITUTION};
+use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS};
 use crate::neighbors;
 use crate::simple_elements::{ELEMENT_DEFAULT, SAND};
 use crate::tile::{ElementState, Tile, Vector};
@@ -26,19 +26,13 @@ pub static FIRE: Element = Element {
     periodic_reaction: Some(|w, i| {
         let mut rng = thread_rng();
         for j in neighbors(i) {
-            let mut did_burn = false;
             if let Some(tile) = &mut w[j] {
                 if tile.element_id() == SAND.id {
                     tile.edit_state(FIRE.id(), MAKES_ASH);
-                    did_burn = true;
                 }
-            }
-            if did_burn {
-                w.unpause(j);
             }
         }
         if rng.gen_range(0, 100) == 0 {
-            w.unpause(i);
             let mut made_ash = false;
             if rng.gen_range(0, 3) == 0 {
                 if let Some(tile) = &mut w[i] {
@@ -64,11 +58,8 @@ impl ElementSetup for FireElementSetup {
             let mut rng = thread_rng();
             let (other, mut neighbors) = world.mutate_neighbors(i_other);
             other.set_element(FIRE.id());
-            neighbors.for_each(|square| match square {
-                Some(tile) => {
-                    //tile.paused = false;
-                }
-                None => {
+            neighbors.for_each(|square| {
+                if square.is_none() {
                     *square = Some(Tile::new(
                         ElementState::default(FIRE.id()),
                         Vector {
@@ -79,7 +70,6 @@ impl ElementSetup for FireElementSetup {
                             x: rng.gen_range(-10, 10),
                             y: rng.gen_range(-10, 10),
                         },
-                        //false,
                     ));
                 }
             });

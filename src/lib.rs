@@ -10,16 +10,14 @@ mod util;
 mod water;
 mod world;
 
-use crate::element::{
-    Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED, PERFECT_RESTITUTION,
-};
+use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::GAS;
 use crate::glass::GLASS;
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
-use crate::tile::{ElementData, ElementState, Tile, Vector};
+use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
 use crate::world::World;
 use itertools::{iproduct, Itertools};
@@ -84,7 +82,6 @@ use piston::input::{
     UpdateArgs, UpdateEvent,
 };
 use piston::window::WindowSettings;
-use std::time::Instant;
 
 fn in_bounds(x: i32, y: i32) -> bool {
     x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT
@@ -270,9 +267,9 @@ impl App {
         });
     }
 
-    fn update(&mut self, args: &UpdateArgs) {
+    fn update(&mut self, _args: &UpdateArgs) {
         let mut i = 0;
-        let now = Instant::now();
+        //let now = Instant::now();
         while i < UPDATES_PER_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
@@ -285,7 +282,7 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        let ms = now.elapsed().as_millis();
+        // let ms = now.elapsed().as_millis();
         // if ms != 0 {
         //     let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
         //     if ups < 1200 {

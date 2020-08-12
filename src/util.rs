@@ -1,4 +1,3 @@
-use crate::water::WATER;
 use crate::{
     point, ElementState, Tile, Vector, World, FIRE, GAS, ROCK, SAND, WALL, WORLD_HEIGHT,
     WORLD_WIDTH,

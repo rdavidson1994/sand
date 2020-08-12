@@ -1,7 +1,7 @@
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
-use crate::tile::{ElementState, Tile, Vector};
+use crate::tile::{ElementState, Tile};
 use crate::{
-    above, adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
+    adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
 };
 use rand::Rng;
@@ -141,7 +141,6 @@ impl World {
                     // Fluids don't collide, they just push through
                     self.swap(source, destination);
                 }
-                self.unpause(destination);
                 self.trigger_collision_reactions(source, destination);
                 self.trigger_collision_side_effects(source, destination);
             }
@@ -330,24 +329,6 @@ impl World {
             Some(mut_ref_tile) => (mut_ref_tile, nhood),
             None => panic!("Attempted to mutate the neighbors of an empty square."),
         }
-    }
-
-    pub fn unpause(&mut self, initial_position: usize) {
-        // let mut current_position = initial_position;
-        // loop {
-        //     if let Some(ref mut tile) = self[current_position] {
-        //         if tile.paused {
-        //             tile.paused = false;
-        //             if let Some(new_position) = above(current_position) {
-        //                 current_position = new_position;
-        //                 // glorified goto lol
-        //                 continue;
-        //             }
-        //         }
-        //     }
-        //     // if any condition fails, exit the loop
-        //     break;
-        // }
     }
 }
 
