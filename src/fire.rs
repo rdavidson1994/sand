@@ -53,7 +53,7 @@ impl ElementSetup for FireElementSetup {
             let mut rng = thread_rng();
             sand.set_element(FIRE.id());
             world.for_neighbors_of_first(|square| match square {
-                Some(tile) => {}
+                Some(_tile) => {}
                 None => {
                     *square = Some(Tile::new(
                         ElementState::default(FIRE.id()),

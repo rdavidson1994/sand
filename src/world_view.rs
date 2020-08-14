@@ -1,5 +1,4 @@
-use crate::element::{FIXED, FLUID};
-use crate::{above, adjacent_x, neighbors, raw_neighbors, WORLD_WIDTH};
+use crate::{raw_neighbors, WORLD_WIDTH};
 use std::ops::{Index, IndexMut};
 
 #[derive(Clone, Copy, Debug)]
