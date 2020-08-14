@@ -27,8 +27,10 @@ pub static LAVA: Element = Element {
                                 y: rand::thread_rng().gen_range(-126, 127),
                             },
                             Vector {
-                                x: rand::thread_rng().gen_range(-10, 10),
-                                y: rand::thread_rng().gen_range(-10, 10),
+                                x: rand::thread_rng()
+                                    .gen_range(this.velocity.x - 10, this.velocity.x + 10),
+                                y: rand::thread_rng()
+                                    .gen_range(this.velocity.y - 10, this.velocity.y + 10),
                             },
                         ));
                         // Every time you create fire, roll to cool into rock
