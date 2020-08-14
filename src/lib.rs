@@ -5,6 +5,7 @@ mod glass;
 mod lava;
 mod metal;
 mod simple_elements;
+mod snow;
 mod tile;
 mod util;
 mod water;
@@ -41,6 +42,7 @@ lazy_static! {
             Box::new(LavaSetup),
             Box::new(ElectronSetup),
             Box::new(FireElementSetup),
+            Box::new(SnowSetup),
         ]
     };
 }
@@ -75,6 +77,7 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use crate::snow::{SnowSetup, SNOW};
 use crate::world_view::CollisionView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
@@ -423,7 +426,7 @@ pub fn game_loop() {
                         Key::D7 => Some(&METAL),
                         Key::D8 => Some(&ELECTRON),
                         Key::D9 => Some(&LAVA),
-                        Key::D0 => Some(&GLASS),
+                        Key::D0 => Some(&SNOW),
                         _ => None, // Key not recognized, do nothing
                     } {
                         selected_pen = Box::new(ElementPen {
