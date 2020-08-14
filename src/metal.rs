@@ -22,8 +22,7 @@ pub static METAL: Element = Element {
         NEUTRAL | _ => &NEUTRAL_COLOR,
     }),
 
-    periodic_reaction: Some(|world, i| {
-        let (this, mut neighbors) = world.mutate_neighbors(i);
+    periodic_reaction: Some(|mut this, world| {
         match this.special_info() {
             CHARGED_HEAD => {
                 this.edit_state(METAL.id(), CHARGED_TAIL);
@@ -33,18 +32,19 @@ pub static METAL: Element = Element {
             }
             NEUTRAL | _ => {
                 let mut adjacent_heads = 0;
-                neighbors.for_each(|neighbor| {
-                    if let Some(tile) = neighbor {
+                for i in world.neighbors() {
+                    if let Some(tile) = world[i] {
                         if tile.has_state(METAL.id(), CHARGED_HEAD) {
                             adjacent_heads += 1;
                         }
                     }
-                });
+                }
                 if adjacent_heads == 1 || adjacent_heads == 2 {
                     this.edit_state(METAL.id(), CHARGED_HEAD);
                 }
             }
         }
+        Some(this)
     }),
     ..ELEMENT_DEFAULT
 };
@@ -60,11 +60,9 @@ pub static ELECTRON: Element = Element {
 pub struct ElectronSetup;
 impl ElementSetup for ElectronSetup {
     fn register_reactions(&self, world: &mut World) {
-        world.register_collision_side_effect(&METAL, &ELECTRON, |world, i_metal, i_elec| {
-            if let Some(metal_tile) = &mut world[i_metal] {
-                metal_tile.edit_state(METAL.id(), CHARGED_HEAD);
-            }
-            world[i_elec] = None;
+        world.register_collision_side_effect(&METAL, &ELECTRON, |mut metal, _electron, _world| {
+            metal.edit_state(METAL.id(), CHARGED_HEAD);
+            (Some(metal), None)
         });
     }
 
