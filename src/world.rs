@@ -1,5 +1,6 @@
 use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
+use crate::world_view::{CollisionView, NeighborhoodView};
 use crate::{
     adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
     WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
@@ -51,7 +52,7 @@ fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, Neighborhoo
     (&mut center[0], Neighborhood::new(before, after))
 }
 
-trait PairwiseMutate {
+pub(crate) trait PairwiseMutate {
     type T;
     fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T);
 }
@@ -141,7 +142,7 @@ impl World {
                     // Fluids don't collide, they just push through
                     self.swap(source, destination);
                 }
-                self.trigger_collision_reactions(source, destination);
+                //self.trigger_collision_reactions(source, destination);
                 self.trigger_collision_side_effects(source, destination);
             }
         }
@@ -202,9 +203,9 @@ impl World {
 
     pub fn apply_periodic_reactions(&mut self) {
         for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = &mut self[i] {
+            if let Some(tile) = self[i] {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
-                    reaction(self, i);
+                    self[i] = reaction(tile, NeighborhoodView::new(self.grid.as_mut(), i));
                 }
             }
         }
@@ -219,7 +220,7 @@ impl World {
         &mut self,
         element1: &Element,
         element2: &Element,
-        reaction: fn(&mut Tile, &mut Tile),
+        reaction: CollisionReaction,
     ) {
         let first_id = element1.id;
         let second_id = element2.id;
@@ -245,7 +246,7 @@ impl World {
         &mut self,
         element1: &Element,
         element2: &Element,
-        side_effect: fn(&mut World, usize, usize),
+        side_effect: CollisionSideEffect,
     ) {
         let first_id = element1.id;
         let second_id = element2.id;
@@ -267,51 +268,91 @@ impl World {
         }
     }
 
-    fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
+    // fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
+    //     // If we can't unwrap here, a collision occurred in empty space
+    //     let source_element_id = self[source].as_ref().unwrap().get_element().id;
+    //     let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
+    //     let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+    //     let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+    //     if let Some(reaction) = self
+    //         .collision_side_effects
+    //         .get_mut(&(first_element_id, last_element_id))
+    //     {
+    //         if first_element_id == source_element_id {
+    //             reaction(self, source, destination);
+    //         } else {
+    //             reaction(self, destination, source);
+    //         }
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
+
+    pub fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
         // If we can't unwrap here, a collision occurred in empty space
-        let source_element_id = self[source].as_ref().unwrap().get_element().id;
-        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
+        let source_tile = self[source].unwrap();
+        let destination_tile = self[destination].unwrap();
+        let source_element_id = source_tile.element_id();
+        let destination_element_id = destination_tile.element_id();
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);
         let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self
-            .collision_side_effects
-            .get_mut(&(first_element_id, last_element_id))
-        {
-            if first_element_id == source_element_id {
-                reaction(self, source, destination);
+        let (first_tile, second_tile, first_index, second_index) =
+            if source_element_id == first_element_id {
+                (source_tile, destination_tile, source, destination)
             } else {
-                reaction(self, destination, source);
-            }
-            true
-        } else {
-            false
+                (destination_tile, source_tile, destination, source)
+            };
+
+        if let Some(reaction) = self
+            .collision_side_effects // rustfmt-skip
+            .get(&(first_element_id, last_element_id))
+        {
+            let (first_after, second_after) = reaction(
+                first_tile,
+                second_tile,
+                CollisionView::new(self.grid.as_mut(), first_index, second_index),
+            );
+            self[first_index] = first_after;
+            self[second_index] = second_after;
+            return true;
         }
+        if let Some(reaction) = self
+            .collision_reactions // rustfmt-skip
+            .get(&(first_element_id, last_element_id))
+        {
+            let (first_after, second_after) = reaction(first_tile, second_tile);
+            self[first_index] = first_after;
+            self[second_index] = second_after;
+            return true;
+        }
+        return false;
     }
 
-    fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
-        let source_element_id = self[source].as_ref().unwrap().get_element().id;
-        let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-        let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-        let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-        if let Some(reaction) = self
-            .collision_reactions
-            .get_mut(&(first_element_id, last_element_id))
-        {
-            let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
-            let (source_tile, destination_tile) = (
-                source_option.as_mut().unwrap(),
-                destination_option.as_mut().unwrap(),
-            );
-            if first_element_id == source_element_id {
-                reaction(source_tile, destination_tile);
-            } else {
-                reaction(destination_tile, source_tile);
-            }
-            true
-        } else {
-            false
-        }
-    }
+    // fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
+    //     let source_element_id = self[source].as_ref().unwrap().get_element().id;
+    //     let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
+    //     let first_element_id = std::cmp::min(source_element_id, destination_element_id);
+    //     let last_element_id = std::cmp::max(source_element_id, destination_element_id);
+    //     if let Some(reaction) = self
+    //         .collision_reactions
+    //         .get_mut(&(first_element_id, last_element_id))
+    //     {
+    //         let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
+    //         let (source_tile, destination_tile) = (
+    //             source_option.as_mut().unwrap(),
+    //             destination_option.as_mut().unwrap(),
+    //         );
+    //         if first_element_id == source_element_id {
+    //             reaction(source_tile, destination_tile);
+    //         } else {
+    //             reaction(destination_tile, source_tile);
+    //         }
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 
     pub(crate) fn mutate_pair(
         &mut self,

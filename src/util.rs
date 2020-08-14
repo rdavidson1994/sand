@@ -31,7 +31,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
         for y in WORLD_HEIGHT - 65..WORLD_HEIGHT - 45 {
             world[point(x, y)] = Some(Tile::new(
                 ElementState::default(SAND.id()),
-                Vector { x: 0, y: 0 },
+                Vector { x: 0, y: -1 },
                 Vector { x: 0, y: 0 },
                 //false,
             ))

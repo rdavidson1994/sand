@@ -9,6 +9,7 @@ mod tile;
 mod util;
 mod water;
 mod world;
+mod world_view;
 
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::fire::{FireElementSetup, ASH, FIRE};
@@ -74,6 +75,7 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
+use crate::world_view::CollisionView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventLoop, EventSettings, Events};
@@ -156,6 +158,15 @@ pub fn neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
         .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
 }
 
+pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
+    let x = index as i32 % WORLD_WIDTH;
+    let y = index as i32 / WORLD_WIDTH;
+    iproduct!(-1i32..=1i32, -1i32..=1i32) // consider all adjacent tuples
+        .filter(|&tuple| tuple != (0, 0)) // exclude same tile
+        .map(move |(dx, dy)| (x + dx, y + dy)) // exclude tiles outside world bounds
+        .map(|(x, y)| (x + y * WORLD_WIDTH) as usize) // calculate index
+}
+
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
     let mut needs_update = false;
     // This makes more sense at the end, but borrowck didn't like it
@@ -220,8 +231,9 @@ fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
 
-type CollisionSideEffect = fn(&mut World, usize, usize);
-type CollisionReaction = fn(&mut Tile, &mut Tile);
+type CollisionSideEffect =
+    fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
+type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 struct App {
     gl: GlGraphics,
