@@ -4,15 +4,12 @@ use crate::world_view::NeighborhoodView;
 use crate::ELEMENTS;
 use std::num::NonZeroU8;
 
-impl ElementId {
-    pub(crate) fn get_element(self) -> &'static Element {
-        &ELEMENTS[self.0 as usize]
-    }
-}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ElementId(pub u8);
 
-impl DefaultSetup {
-    pub fn new(element: &'static Element) -> Self {
-        DefaultSetup { element }
+impl ElementId {
+    pub fn get_element(self) -> &'static Element {
+        &ELEMENTS[self.0 as usize]
     }
 }
 
@@ -55,6 +52,26 @@ pub struct DefaultSetup {
     element: &'static Element,
 }
 
+impl DefaultSetup {
+    pub fn new(element: &'static Element) -> Self {
+        DefaultSetup { element }
+    }
+}
+
+impl ElementSetup for DefaultSetup {
+    fn register_reactions(&self, _world: &mut World) {
+        // Do nothing
+    }
+
+    fn build_element(&self) -> Element {
+        self.element.clone()
+    }
+
+    fn get_id(&self) -> ElementId {
+        self.element.id()
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct Element {
     pub flags: EFlag,
@@ -79,22 +96,5 @@ impl Element {
             Some(function) => function(special_info),
             None => &self.color,
         }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ElementId(pub u8);
-
-impl ElementSetup for DefaultSetup {
-    fn register_reactions(&self, _world: &mut World) {
-        // Do nothing
-    }
-
-    fn build_element(&self) -> Element {
-        self.element.clone()
-    }
-
-    fn get_id(&self) -> ElementId {
-        self.element.id()
     }
 }

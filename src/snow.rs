@@ -1,4 +1,4 @@
-use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS};
+use crate::element::{Element, ElementId, ElementSetup, GRAVITY};
 use crate::fire::FIRE;
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::water::WATER;
