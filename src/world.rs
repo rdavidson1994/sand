@@ -10,8 +10,10 @@ use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
 
+type Grid = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];
+
 pub struct World {
-    grid: Box<[Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize]>,
+    grid: Box<Grid>,
     collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
     collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
 }
@@ -91,7 +93,7 @@ impl Index<usize> for World {
 impl World {
     pub fn new() -> World {
         World {
-            grid: Box::new([EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize]),
+            grid: box [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
             collision_side_effects: std::collections::HashMap::new(),
             collision_reactions: std::collections::HashMap::new(),
         }
