@@ -1,7 +1,8 @@
-use crate::element::{Element, PAUSE_EXEMPT, PERFECT_RESTITUTION};
+use crate::element::{Element, ElementId, ElementSetup, PAUSE_EXEMPT, PERFECT_RESTITUTION};
 use crate::fire::FIRE;
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile};
+use crate::world::World;
 use crate::Vector;
 
 const EXPLOSION_VELOCITY: i8 = 50;
@@ -21,17 +22,14 @@ pub static GAS: Element = Element {
     color: [1.0, 0.5, 1.0, 1.0],
     mass: 3,
     id: 3,
-    periodic_reaction: Some(|mut this, mut world| {
-        let mut will_explode = false;
-        world.for_each_neighbor(|opt_tile| {
-            if let Some(tile) = opt_tile {
-                if tile.element_id() == FIRE.id {
-                    will_explode = true;
-                }
-            }
-        });
-        if will_explode {
-            for (j, delta_v) in world.neighbors().zip(EXPLOSION_VECTORS.iter()) {
+    ..ELEMENT_DEFAULT
+};
+
+pub struct GasSetup;
+impl ElementSetup for GasSetup {
+    fn register_reactions(&self, world: &mut World) {
+        world.register_collision_side_effect(&GAS, &FIRE, |mut gas, fire, mut world| {
+            for (j, delta_v) in world.second().neighbors().zip(EXPLOSION_VECTORS.iter()) {
                 let mut new_tile = match world[j].take() {
                     Some(existing_tile) => existing_tile,
                     None => Tile::new(
@@ -44,9 +42,16 @@ pub static GAS: Element = Element {
                 new_tile.velocity.y = new_tile.velocity.x.saturating_add(delta_v.1);
                 world[j] = Some(new_tile);
             }
-            this.set_element(FIRE.id());
-        }
-        Some(this)
-    }),
-    ..ELEMENT_DEFAULT
-};
+            gas.set_element(FIRE.id());
+            (Some(gas), Some(fire))
+        });
+    }
+
+    fn build_element(&self) -> Element {
+        GAS.clone()
+    }
+
+    fn get_id(&self) -> ElementId {
+        GAS.id()
+    }
+}
