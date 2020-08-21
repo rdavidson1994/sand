@@ -217,8 +217,6 @@ fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>
     }
 
     for (i, j) in motion_queue {
-        assert!(in_bounds(coords(*i).0, coords(*i).1));
-        assert!(in_bounds(coords(*j).0, coords(*j).1));
         world.move_particle(*i, *j);
     }
 
