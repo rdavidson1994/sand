@@ -2,3 +2,4 @@
 run.cmd
 /.idea/
 /todo
+.vscode/settings.json
