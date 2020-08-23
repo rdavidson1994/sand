@@ -13,7 +13,9 @@ mod util;
 mod water;
 mod world;
 mod world_view;
+mod element_menu;
 
+use crate::element_menu::ElementMenu;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
@@ -29,8 +31,10 @@ use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
 
+type SetupList = Vec<Box<dyn ElementSetup>>;
+
 lazy_static! {
-    pub static ref SETUPS: Vec<Box<dyn ElementSetup>> = {
+    pub static ref SETUPS: SetupList = {
         let default_setup = |x| Box::new(DefaultSetup::new(x));
         vec![
             default_setup(&SAND),
@@ -62,18 +66,20 @@ lazy_static! {
     };
 }
 
+const MENU_PIXEL_HEIGHT : i32 = 40;
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
-const WINDOW_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
+const PLAY_AREA_PIXEL_HEIGHT: i32 =  WORLD_HEIGHT * TILE_PIXELS;
+const WINDOW_PIXEL_HEIGHT: i32 = PLAY_AREA_PIXEL_HEIGHT + MENU_PIXEL_HEIGHT;
 const UPDATES_PER_FRAME: i32 = 20;
-const GRAVITY_PERIOD: i32 = 5;
-const REACTION_PERIOD: i32 = 1; // This is still fast! :D It used to be 100!
-const PAUSE_VELOCITY: i8 = 3;
 // 1 frame = 20 updates
 // 1 second = 60 frames = 1200 updates
+const GRAVITY_PERIOD: i32 = 5;
+const REACTION_PERIOD: i32 = 3; // This is still fast! :D It used to be 100!
+const PAUSE_VELOCITY: i8 = 3;
 extern crate glutin_window;
 extern crate graphics;
 extern crate opengl_graphics;
@@ -242,6 +248,7 @@ struct App {
     gl: GlGraphics,
     turn: i32,
     world: World,
+    element_menu: ElementMenu,
     motion_queue: VecDeque<(usize, usize)>,
 }
 
@@ -254,6 +261,7 @@ impl App {
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
         let world_ref = &self.world;
         self.gl.draw(args.viewport(), |c, gl| {
@@ -280,6 +288,13 @@ impl App {
                 }
             }
         });
+        let menu_ref = &mut self.element_menu;
+        self.gl.draw(args.viewport(), |mut c,gl| {
+            // Translate down by the height of the playing area
+            c.transform = c.transform.trans(0.0, PLAY_AREA_PIXEL_HEIGHT as f64);
+            // Then draw the element selection menu
+            menu_ref.draw(c, gl);
+        });
     }
 
     fn update(&mut self, _args: &UpdateArgs) {
@@ -297,14 +312,6 @@ impl App {
             self.turn += 1;
             i += 1;
         }
-        // let ms = now.elapsed().as_millis();
-        // if ms != 0 {
-        //     let ups = UPDATES_PER_FRAME * 1000 / ms as i32;
-        //     if ups < 1200 {
-        //         println!("{} ms", ms);
-        //         println!("{} updates per second", ups);
-        //     }
-        // }
     }
 }
 
@@ -382,7 +389,9 @@ pub fn game_loop() {
         gl: GlGraphics::new(open_gl),
         turn: 0,
         motion_queue: VecDeque::new(),
+        element_menu: ElementMenu::new(SETUPS.as_ref(), 12),
     };
+    
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen {
         element: &SAND,
         radius: 0,
@@ -408,8 +417,23 @@ pub fn game_loop() {
             match args.button {
                 Button::Mouse(MouseButton::Left) => match args.state {
                     ButtonState::Press => {
-                        drawing = true;
-                        selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
+                        if last_mouse_pos.1 > PLAY_AREA_PIXEL_HEIGHT as f64 {
+                            // Let the menu handle it
+                            let (x,y) = (
+                                last_mouse_pos.0,
+                                last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64
+                            );
+                            if let Some(element_id) = app.element_menu.on_click(x, y) {
+                                selected_pen = Box::new(ElementPen {
+                                    element: element_id.get_element(),
+                                    radius: selected_pen.get_radius(),
+                                });
+                            }
+                        }
+                        else {
+                            drawing = true;
+                            selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
+                        }
                     }
                     ButtonState::Release => {
                         drawing = false;
