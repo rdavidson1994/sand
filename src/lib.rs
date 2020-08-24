@@ -321,7 +321,7 @@ trait Pen {
     fn set_radius(&mut self, radius: i32);
 }
 
-struct ElementPen {
+pub struct ElementPen {
     element: &'static Element,
     radius: i32,
 }
@@ -423,11 +423,8 @@ pub fn game_loop() {
                                 last_mouse_pos.0,
                                 last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64
                             );
-                            if let Some(element_id) = app.element_menu.on_click(x, y) {
-                                selected_pen = Box::new(ElementPen {
-                                    element: element_id.get_element(),
-                                    radius: selected_pen.get_radius(),
-                                });
+                            if let Some(pen) = app.element_menu.on_click(x, y) {
+                                selected_pen = Box::new(pen);
                             }
                         }
                         else {
