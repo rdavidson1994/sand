@@ -261,7 +261,6 @@ impl App {
         use graphics::*;
 
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
         let world_ref = &self.world;
         self.gl.draw(args.viewport(), |c, gl| {

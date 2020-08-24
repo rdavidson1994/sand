@@ -27,7 +27,6 @@ pub static LAVA: Element = Element {
                                 y: rand::thread_rng().gen_range(-126, 127),
                             },
                             Vector {
-                                // TODO: Check overflows
                                 x: rand::thread_rng()
                                     .gen_range(this.velocity.x.saturating_sub(10), this.velocity.x.saturating_add(10)),
                                 y: rand::thread_rng()

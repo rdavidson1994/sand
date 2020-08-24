@@ -26,10 +26,6 @@ impl PenSizeButton {
         && self.upper_left.1 + PEN_BUTTON_SIZE > y
     }
 
-    fn outer_edge_width(&self) -> f64 {
-        PEN_BUTTON_SIZE + 1.0 - 2.0*self.pen_size as f64
-    }
-
     fn draw(&self, context: GraphicsContext, gl_graphics: &mut GlGraphics) {
         if self.selected {
             let selection_rectangle = [
