@@ -23,7 +23,7 @@ impl Vector {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Tile {
     //pub paused: bool,
     pub velocity: Vector,

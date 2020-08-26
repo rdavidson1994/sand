@@ -1,5 +1,3 @@
-#![feature(box_syntax)]
-
 mod element;
 mod fire;
 mod gas;
@@ -12,6 +10,7 @@ mod tile;
 mod util;
 mod water;
 mod world;
+mod oil;
 mod world_view;
 mod element_menu;
 
@@ -20,6 +19,7 @@ use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXE
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
+use crate::oil::OIL;
 use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
@@ -49,6 +49,7 @@ lazy_static! {
             Box::new(ElectronSetup),
             Box::new(FireElementSetup),
             Box::new(SnowSetup),
+            default_setup(&OIL),
         ]
     };
 }

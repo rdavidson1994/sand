@@ -93,7 +93,7 @@ impl Index<usize> for World {
 impl World {
     pub fn new() -> World {
         World {
-            grid: box [EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize],
+            grid: Box::new([EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize]),
             collision_side_effects: std::collections::HashMap::new(),
             collision_reactions: std::collections::HashMap::new(),
         }
@@ -205,7 +205,7 @@ impl World {
 
     pub fn apply_periodic_reactions(&mut self) {
         for i in 0..WORLD_SIZE as usize {
-            if let Some(tile) = self[i] {
+            if let Some(tile) = self[i].clone() {
                 if let Some(reaction) = tile.get_element().periodic_reaction {
                     self[i] = reaction(tile, NeighborhoodView::new(self.grid.as_mut(), i));
                 }
@@ -293,8 +293,8 @@ impl World {
 
     pub fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
         // If we can't unwrap here, a collision occurred in empty space
-        let source_tile = self[source].unwrap();
-        let destination_tile = self[destination].unwrap();
+        let source_tile = self[source].clone().unwrap();
+        let destination_tile = self[destination].clone().unwrap();
         let source_element_id = source_tile.element_id();
         let destination_element_id = destination_tile.element_id();
         let first_element_id = std::cmp::min(source_element_id, destination_element_id);

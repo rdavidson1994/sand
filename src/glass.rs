@@ -14,6 +14,7 @@ pub static GLASS: Element = Element {
     periodic_reaction: Some(|mut this, world| {
         for j in world.neighbors() {
             if world[j]
+                .clone()
                 .filter(|tile| tile.element_id() == GLASS.id)
                 .is_none()
             // If any neighboring tile is empty or non-glass

@@ -33,7 +33,7 @@ pub static METAL: Element = Element {
             NEUTRAL | _ => {
                 let mut adjacent_heads = 0;
                 for i in world.neighbors() {
-                    if let Some(tile) = world[i] {
+                    if let Some(tile) = &world[i] {
                         if tile.has_state(METAL.id(), CHARGED_HEAD) {
                             adjacent_heads += 1;
                         }
