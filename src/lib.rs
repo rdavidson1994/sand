@@ -7,6 +7,7 @@ mod metal;
 mod simple_elements;
 mod snow;
 mod tile;
+mod eraser;
 mod util;
 mod water;
 mod world;
@@ -21,6 +22,7 @@ use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
 use crate::oil::OIL;
 use crate::lava::{LavaSetup, LAVA};
+use crate::eraser::EraserSetup;
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
@@ -50,6 +52,7 @@ lazy_static! {
             Box::new(FireElementSetup),
             Box::new(SnowSetup),
             default_setup(&OIL),
+            Box::new(EraserSetup),
         ]
     };
 }
