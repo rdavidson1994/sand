@@ -40,7 +40,7 @@ pub static FIRE: Element = Element {
             };
         }
 
-        return Some(this);
+        Some(this)
     }),
     ..ELEMENT_DEFAULT
 };

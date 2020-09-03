@@ -131,14 +131,12 @@ impl World {
                     } else {
                         s.elastic_collide_x(d);
                     }
-                } else
+                }
                 /*if adjacent_y(source, destination)*/
-                {
-                    if d.has_flag(FIXED) {
-                        s.reflect_velocity_y();
-                    } else {
-                        s.elastic_collide_y(d);
-                    }
+                else if d.has_flag(FIXED) {
+                    s.reflect_velocity_y();
+                } else {
+                    s.elastic_collide_y(d);
                 }
                 if d.has_flag(FLUID) && rand::thread_rng().gen_range(0, 2) == 0 {
                     // Fluids don't collide, they just push through
@@ -235,12 +233,11 @@ impl World {
         }
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_reactions.insert(reagent_ids, reaction);
-        match conflict {
-            Some(_) => panic!(
+        if conflict.is_some() {
+            panic!(
                 "Attempt to register a duplicate reaction for {:?}",
                 reagent_ids
-            ),
-            None => (), // All good
+            )
         }
     }
 
@@ -261,12 +258,11 @@ impl World {
         }
         let reagent_ids = (first_id, second_id);
         let conflict = self.collision_side_effects.insert(reagent_ids, side_effect);
-        match conflict {
-            Some(_) => panic!(
+        if conflict.is_some() {
+            panic!(
                 "Attempt to register a duplicate reaction for {:?}",
                 reagent_ids
-            ),
-            None => (), // All good
+            )
         }
     }
 
@@ -328,7 +324,7 @@ impl World {
             self[second_index] = second_after;
             return true;
         }
-        return false;
+        false
     }
 
     // fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {

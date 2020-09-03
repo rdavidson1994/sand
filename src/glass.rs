@@ -26,10 +26,10 @@ pub static GLASS: Element = Element {
         }
         // Otherwise its state becomes "GLASS_INNER"
         this.edit_state(GLASS.id(), GLASS_INNER);
-        return Some(this);
+        Some(this)
     }),
     state_colors: Some(|state| match state {
         GLASS_INNER => &BLACK,
-        GLASS_EDGE | _ => &LIGHTEST_BLUE,
+        _ => &LIGHTEST_BLUE,
     }),
 };

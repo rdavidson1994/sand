@@ -1,29 +1,31 @@
+#![allow(clippy::new_without_default)]
+
 mod element;
+mod element_menu;
+mod eraser;
 mod fire;
 mod gas;
 mod glass;
 mod lava;
 mod metal;
+mod oil;
 mod simple_elements;
 mod snow;
 mod tile;
-mod eraser;
 mod util;
 mod water;
 mod world;
-mod oil;
 mod world_view;
-mod element_menu;
 
-use crate::element_menu::ElementMenu;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
+use crate::element_menu::ElementMenu;
+use crate::eraser::EraserSetup;
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
-use crate::oil::OIL;
 use crate::lava::{LavaSetup, LAVA};
-use crate::eraser::EraserSetup;
 use crate::metal::{ElectronSetup, ELECTRON, METAL};
+use crate::oil::OIL;
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
@@ -34,6 +36,7 @@ use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
 
 type SetupList = Vec<Box<dyn ElementSetup>>;
+type SetupSlice<'a> = &'a [Box<dyn ElementSetup>];
 
 lazy_static! {
     pub static ref SETUPS: SetupList = {
@@ -70,13 +73,13 @@ lazy_static! {
     };
 }
 
-const MENU_PIXEL_HEIGHT : i32 = 40;
+const MENU_PIXEL_HEIGHT: i32 = 40;
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;
 const TILE_PIXELS: i32 = 3;
 const WINDOW_PIXEL_WIDTH: i32 = WORLD_WIDTH * TILE_PIXELS;
-const PLAY_AREA_PIXEL_HEIGHT: i32 =  WORLD_HEIGHT * TILE_PIXELS;
+const PLAY_AREA_PIXEL_HEIGHT: i32 = WORLD_HEIGHT * TILE_PIXELS;
 const WINDOW_PIXEL_HEIGHT: i32 = PLAY_AREA_PIXEL_HEIGHT + MENU_PIXEL_HEIGHT;
 const UPDATES_PER_FRAME: i32 = 20;
 // 1 frame = 20 updates
@@ -292,7 +295,7 @@ impl App {
             }
         });
         let menu_ref = &mut self.element_menu;
-        self.gl.draw(args.viewport(), |mut c,gl| {
+        self.gl.draw(args.viewport(), |mut c, gl| {
             // Translate down by the height of the playing area
             c.transform = c.transform.trans(0.0, PLAY_AREA_PIXEL_HEIGHT as f64);
             // Then draw the element selection menu
@@ -394,7 +397,7 @@ pub fn game_loop() {
         motion_queue: VecDeque::new(),
         element_menu: ElementMenu::new(SETUPS.as_ref(), 12),
     };
-    
+
     let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen {
         element: &SAND,
         radius: 0,
@@ -422,15 +425,14 @@ pub fn game_loop() {
                     ButtonState::Press => {
                         if last_mouse_pos.1 > PLAY_AREA_PIXEL_HEIGHT as f64 {
                             // Let the menu handle it
-                            let (x,y) = (
+                            let (x, y) = (
                                 last_mouse_pos.0,
-                                last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64
+                                last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64,
                             );
                             if let Some(pen) = app.element_menu.on_click(x, y) {
                                 selected_pen = Box::new(pen);
                             }
-                        }
-                        else {
+                        } else {
                             drawing = true;
                             selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
                         }

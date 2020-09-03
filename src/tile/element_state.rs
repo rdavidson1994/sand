@@ -45,7 +45,7 @@ pub struct ElementData {
 impl ElementData {
     pub fn new(state: ElementState) -> ElementData {
         ElementData {
-            current: state.clone(),
+            current: state,
             staged: state,
         }
     }
@@ -64,6 +64,6 @@ impl ElementData {
     }
 
     pub fn commit(&mut self) {
-        self.current = self.staged.clone();
+        self.current = self.staged;
     }
 }

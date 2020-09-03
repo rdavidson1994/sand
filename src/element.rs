@@ -72,13 +72,15 @@ impl ElementSetup for DefaultSetup {
     }
 }
 
+type PeriodicReaction = fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>;
+
 #[derive(Default, Clone)]
 pub struct Element {
     pub flags: EFlag,
     pub color: Color,
     pub mass: i8,
     pub id: u8,
-    pub periodic_reaction: Option<fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>>,
+    pub periodic_reaction: Option<PeriodicReaction>,
     pub state_colors: Option<fn(u8) -> &'static Color>,
 }
 

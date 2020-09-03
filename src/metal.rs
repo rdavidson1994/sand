@@ -19,7 +19,7 @@ pub static METAL: Element = Element {
     state_colors: Some(|special_info| match special_info {
         CHARGED_HEAD => &CHARGED_HEAD_COLOR,
         CHARGED_TAIL => &CHARGED_TAIL_COLOR,
-        NEUTRAL | _ => &NEUTRAL_COLOR,
+        _ => &NEUTRAL_COLOR,
     }),
 
     periodic_reaction: Some(|mut this, world| {
@@ -30,7 +30,7 @@ pub static METAL: Element = Element {
             CHARGED_TAIL => {
                 this.edit_state(METAL.id(), NEUTRAL);
             }
-            NEUTRAL | _ => {
+            _ => {
                 let mut adjacent_heads = 0;
                 for i in world.neighbors() {
                     if let Some(tile) = &world[i] {
@@ -46,7 +46,7 @@ pub static METAL: Element = Element {
         }
         Some(this)
     }),
-    ..ELEMENT_DEFAULT
+    //..ELEMENT_DEFAULT
 };
 
 pub static ELECTRON: Element = Element {
