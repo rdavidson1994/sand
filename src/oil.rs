@@ -10,7 +10,7 @@ pub static OIL: Element = Element {
     periodic_reaction: Some(|this, mut world| {
         if let Some(ref mut tile) = world.above() {
             // If there is a tile above you, it tries to "slide off" randomly
-            let delta_x = rand::thread_rng().gen_range(-3,3+1);
+            let delta_x = rand::thread_rng().gen_range(-3, 3 + 1);
             tile.velocity.x = tile.velocity.x.saturating_add(delta_x);
         }
         Some(this)

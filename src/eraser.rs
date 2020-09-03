@@ -8,7 +8,7 @@ pub static ERASER: Element = Element {
     color: [1.0, 0.0, 1.0, 1.0],
     mass: 0,
     id: 13,
-    periodic_reaction: Some(|_this, mut world| { 
+    periodic_reaction: Some(|_this, mut world| {
         world.for_each_neighbor(|opt_tile| {
             match opt_tile {
                 Some(tile) if tile.element_id() == WALL.id => {
@@ -22,7 +22,6 @@ pub static ERASER: Element = Element {
         });
         // Immediately self-delete
         None
-
     }),
     ..ELEMENT_DEFAULT
 };

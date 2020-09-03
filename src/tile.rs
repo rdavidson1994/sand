@@ -79,7 +79,10 @@ impl Tile {
     }
 
     pub fn increment_info(&mut self) {
-        self.edit_state(ElementId(self.element_id()), self.special_info().saturating_add(1));
+        self.edit_state(
+            ElementId(self.element_id()),
+            self.special_info().saturating_add(1),
+        );
     }
 
     pub fn decrement_info(&mut self) {

@@ -21,7 +21,7 @@ impl<'a, T> NeighborhoodView<'a, T> {
     }
 
     pub fn neighbors(&self) -> impl Iterator<Item = NeighborhoodIndex> {
-        raw_neighbors(self.index).map(|x| NeighborhoodIndex(x))
+        raw_neighbors(self.index).map(NeighborhoodIndex)
     }
 
     pub fn above(&mut self) -> &mut T {
