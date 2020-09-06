@@ -1,17 +1,3 @@
-// #[derive(Clone, PartialEq, Eq)]
-// pub enum ElementState {
-//     None,
-//     MetalState(MetalState),
-//     ActiveFire
-// }
-
-// #[derive(Clone, PartialEq, Eq)]
-// pub enum MetalState {
-//     Neutral,
-//     ChargedHead,
-//     ChargedTail,
-// }
-
 use crate::element::{ElementId, SpecialElementInfo};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]

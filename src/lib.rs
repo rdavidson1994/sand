@@ -304,7 +304,6 @@ impl App {
 
     fn update(&mut self, _args: &UpdateArgs) {
         let mut i = 0;
-        //let now = Instant::now();
         while i < UPDATES_PER_FRAME {
             self.world.pause_particles();
             if self.turn % GRAVITY_PERIOD == 0 {
@@ -377,12 +376,10 @@ pub fn game_loop() {
     let open_gl = OpenGL::V3_2;
     let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
 
-    //let mut i = 0;
     util::create_walls(&mut world);
     util::populate_world_water_bubble(&mut world);
-    //FireElementSetup.register_reactions(&mut world);
 
-    // Create an Glutin window.
+    // Create a Glutin window.
     let mut window: Window = WindowSettings::new("Falling sand", size)
         .graphics_api(open_gl)
         .exit_on_esc(true)

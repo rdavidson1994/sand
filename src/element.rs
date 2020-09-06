@@ -72,8 +72,6 @@ impl ElementSetup for DefaultSetup {
     }
 }
 
-//pub type PeriodicReaction = fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>;
-
 #[derive(Clone, Copy)]
 pub enum PeriodicReaction {
     Some(fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>),

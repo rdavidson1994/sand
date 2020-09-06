@@ -306,27 +306,6 @@ impl World {
         }
     }
 
-    // fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
-    //     // If we can't unwrap here, a collision occurred in empty space
-    //     let source_element_id = self[source].as_ref().unwrap().get_element().id;
-    //     let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-    //     let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-    //     let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-    //     if let Some(reaction) = self
-    //         .collision_side_effects
-    //         .get_mut(&(first_element_id, last_element_id))
-    //     {
-    //         if first_element_id == source_element_id {
-    //             reaction(self, source, destination);
-    //         } else {
-    //             reaction(self, destination, source);
-    //         }
-    //         true
-    //     } else {
-    //         false
-    //     }
-    // }
-
     pub fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
         // If we can't unwrap here, a collision occurred in empty space
         let source_tile = self[source].clone().unwrap();
@@ -366,31 +345,6 @@ impl World {
         }
         false
     }
-
-    // fn trigger_collision_reactions(&mut self, source: usize, destination: usize) -> bool {
-    //     let source_element_id = self[source].as_ref().unwrap().get_element().id;
-    //     let destination_element_id = self[destination].as_ref().unwrap().get_element().id;
-    //     let first_element_id = std::cmp::min(source_element_id, destination_element_id);
-    //     let last_element_id = std::cmp::max(source_element_id, destination_element_id);
-    //     if let Some(reaction) = self
-    //         .collision_reactions
-    //         .get_mut(&(first_element_id, last_element_id))
-    //     {
-    //         let (source_option, destination_option) = self.grid.mutate_pair(source, destination);
-    //         let (source_tile, destination_tile) = (
-    //             source_option.as_mut().unwrap(),
-    //             destination_option.as_mut().unwrap(),
-    //         );
-    //         if first_element_id == source_element_id {
-    //             reaction(source_tile, destination_tile);
-    //         } else {
-    //             reaction(destination_tile, source_tile);
-    //         }
-    //         true
-    //     } else {
-    //         false
-    //     }
-    // }
 
     pub(crate) fn mutate_pair(
         &mut self,
