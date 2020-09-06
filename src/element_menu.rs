@@ -10,7 +10,7 @@ const BUTTON_HEIGHT: f64 = 10.0;
 const PEN_BUTTON_SIZE: f64 = 10.0;
 const BUTTON_PADDING_X: f64 = 5.0;
 const BUTTON_PADDING_Y: f64 = 5.0;
-const PEN_SIZES: [usize; 5] = [1, 2, 3, 4, 5];
+const PEN_SIZES: [usize; 5] = [0, 1, 2, 3, 4];
 
 struct PenSizeButton {
     pen_size: usize,
@@ -45,8 +45,8 @@ impl PenSizeButton {
         let rectangle = [
             self.upper_left.0,
             self.upper_left.1,
-            self.pen_size as f64 * 2.0 - 1.0,
-            self.pen_size as f64 * 2.0 - 1.0,
+            self.pen_size as f64 * 2.0 + 1.0,
+            self.pen_size as f64 * 2.0 + 1.0,
         ];
         graphics::rectangle(
             [1.0, 0.0, 1.0, 1.0],
@@ -133,12 +133,12 @@ impl ElementMenu {
             buttons_per_row as f64 * (BUTTON_WIDTH + 2.0 * BUTTON_PADDING_X) + BUTTON_PADDING_X;
 
         let mut pen_buttons = vec![];
-        for size in PEN_SIZES.iter() {
+        for (i, size) in PEN_SIZES.iter().enumerate() {
             let pen_button = PenSizeButton {
                 pen_size: *size,
-                selected: *size == 1,
+                selected: *size == 0,
                 upper_left: (
-                    pen_buttons_left + ((size - 1) as f64) * pen_button_stride,
+                    pen_buttons_left + (i as f64) * pen_button_stride,
                     BUTTON_PADDING_Y,
                 ),
             };
@@ -149,7 +149,7 @@ impl ElementMenu {
             pen_size_buttons: pen_buttons,
             element_buttons: buttons,
             selected_element_index: 0,
-            selected_pen_size: 1,
+            selected_pen_size: 0,
         }
     }
 
