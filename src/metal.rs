@@ -1,4 +1,4 @@
-use crate::element::PERFECT_RESTITUTION;
+use crate::element::{PeriodicReaction, PERFECT_RESTITUTION};
 use crate::world::World;
 use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
 
@@ -22,7 +22,7 @@ pub static METAL: Element = Element {
         _ => &NEUTRAL_COLOR,
     }),
 
-    periodic_reaction: Some(|mut this, world| {
+    periodic_reaction: PeriodicReaction::Some(|mut this, world| {
         match this.special_info() {
             CHARGED_HEAD => {
                 this.edit_state(METAL.id(), CHARGED_TAIL);
@@ -54,6 +54,10 @@ pub static ELECTRON: Element = Element {
     flags: PERFECT_RESTITUTION,
     id: 8,
     color: [0.5, 0.5, 1.0, 1.0],
+    periodic_reaction: PeriodicReaction::DecayToNothing {
+        lifetime: 8,
+        rarity: 8,
+    },
     ..ELEMENT_DEFAULT
 };
 

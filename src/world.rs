@@ -1,4 +1,4 @@
-use crate::element::{Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
+use crate::element::{Element, PeriodicReaction, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::world_view::{CollisionView, NeighborhoodView};
 use crate::{
@@ -204,8 +204,48 @@ impl World {
     pub fn apply_periodic_reactions(&mut self) {
         for i in 0..WORLD_SIZE as usize {
             if let Some(tile) = self[i].clone() {
-                if let Some(reaction) = tile.get_element().periodic_reaction {
-                    self[i] = reaction(tile, NeighborhoodView::new(self.grid.as_mut(), i));
+                match tile.get_element().periodic_reaction {
+                    PeriodicReaction::Some(reaction) => {
+                        self[i] = reaction(tile, NeighborhoodView::new(self.grid.as_mut(), i));
+                    }
+                    PeriodicReaction::None => {
+                        // Do nothing
+                    }
+                    PeriodicReaction::DecayInto {
+                        element_id,
+                        lifetime,
+                        rarity,
+                    } => {
+                        if rand::thread_rng().gen_range(0, rarity) == 0 {
+                            let mut new_tile = tile.clone();
+                            new_tile.edit_state(
+                                tile.get_element().id(),
+                                tile.special_info().saturating_add(1),
+                            );
+                            // Increase "temperature" by one
+                            if new_tile.special_info() == lifetime {
+                                // If we hit 255, melt
+                                new_tile.set_element(element_id)
+                            }
+                            self[i] = Some(new_tile);
+                        }
+                    }
+                    PeriodicReaction::DecayToNothing { lifetime, rarity } => {
+                        if rand::thread_rng().gen_range(0, rarity) == 0 {
+                            let mut new_tile = tile.clone();
+                            new_tile.edit_state(
+                                tile.get_element().id(),
+                                tile.special_info().saturating_add(1),
+                            );
+                            // Increase "temperature" by one
+                            if new_tile.special_info() == lifetime {
+                                // If we hit 255, melt
+                                self[i] = None
+                            } else {
+                                self[i] = Some(new_tile);
+                            }
+                        }
+                    }
                 }
             }
         }

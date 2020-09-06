@@ -72,15 +72,30 @@ impl ElementSetup for DefaultSetup {
     }
 }
 
-type PeriodicReaction = fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>;
+//pub type PeriodicReaction = fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>;
 
-#[derive(Default, Clone)]
+#[derive(Clone, Copy)]
+pub enum PeriodicReaction {
+    Some(fn(Tile, NeighborhoodView<Option<Tile>>) -> Option<Tile>),
+    None,
+    DecayInto {
+        element_id: ElementId,
+        lifetime: u8,
+        rarity: i32,
+    },
+    DecayToNothing {
+        lifetime: u8,
+        rarity: i32,
+    },
+}
+
+#[derive(Clone)]
 pub struct Element {
     pub flags: EFlag,
     pub color: Color,
     pub mass: i8,
     pub id: u8,
-    pub periodic_reaction: Option<PeriodicReaction>,
+    pub periodic_reaction: PeriodicReaction,
     pub state_colors: Option<fn(u8) -> &'static Color>,
 }
 
@@ -89,7 +104,7 @@ impl Element {
         flag & self.flags != 0
     }
 
-    pub fn id(&self) -> ElementId {
+    pub const fn id(&self) -> ElementId {
         ElementId(self.id)
     }
 

@@ -1,4 +1,4 @@
-use crate::element::{Element, GRAVITY, NO_FLAGS};
+use crate::element::{Element, PeriodicReaction, GRAVITY, NO_FLAGS};
 use crate::FIXED;
 
 pub static ELEMENT_DEFAULT: Element = Element {
@@ -6,7 +6,7 @@ pub static ELEMENT_DEFAULT: Element = Element {
     color: [1.0, 0.0, 1.0, 1.0],
     mass: 0,
     id: 255,
-    periodic_reaction: None,
+    periodic_reaction: PeriodicReaction::None,
     state_colors: None,
 };
 

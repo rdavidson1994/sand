@@ -1,4 +1,4 @@
-use crate::element::{GRAVITY, PAUSE_EXEMPT};
+use crate::element::{PeriodicReaction, GRAVITY, PAUSE_EXEMPT};
 use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
@@ -11,7 +11,7 @@ pub static LAVA: Element = Element {
     color: [0.8, 0.5, 0.2, 1.0],
     mass: 50,
     id: 9,
-    periodic_reaction: Some(|mut this, mut world| {
+    periodic_reaction: PeriodicReaction::Some(|mut this, mut world| {
         for i in world.neighbors() {
             match world[i] {
                 Some(_) => {

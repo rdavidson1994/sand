@@ -1,4 +1,4 @@
-use crate::element::{Element, ElementId, ElementSetup, NO_FLAGS};
+use crate::element::{Element, ElementId, ElementSetup, PeriodicReaction, NO_FLAGS};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::world::World;
 use crate::WALL;
@@ -8,7 +8,7 @@ pub static ERASER: Element = Element {
     color: [1.0, 0.0, 1.0, 1.0],
     mass: 0,
     id: 13,
-    periodic_reaction: Some(|_this, mut world| {
+    periodic_reaction: PeriodicReaction::Some(|_this, mut world| {
         world.for_each_neighbor(|opt_tile| {
             match opt_tile {
                 Some(tile) if tile.element_id() == WALL.id => {

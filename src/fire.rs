@@ -1,4 +1,6 @@
-use crate::element::{Element, ElementId, ElementSetup, GRAVITY, NO_FLAGS, PERFECT_RESTITUTION};
+use crate::element::{
+    Element, ElementId, ElementSetup, PeriodicReaction, GRAVITY, NO_FLAGS, PERFECT_RESTITUTION,
+};
 use crate::simple_elements::{ELEMENT_DEFAULT, SAND};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
@@ -22,7 +24,7 @@ pub static FIRE: Element = Element {
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
     id: 4,
-    periodic_reaction: Some(|mut this, mut w| {
+    periodic_reaction: PeriodicReaction::Some(|mut this, mut w| {
         w.for_each_neighbor(|opt_tile| {
             if let Some(tile) = opt_tile {
                 if tile.element_id() == SAND.id {

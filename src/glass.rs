@@ -1,4 +1,4 @@
-use crate::{Color, Element, FIXED};
+use crate::{element::PeriodicReaction, Color, Element, FIXED};
 
 static BLACK: Color = [0.1, 0.1, 0.2, 1.0];
 static LIGHTEST_BLUE: Color = [0.9, 0.9, 1.0, 1.0];
@@ -11,7 +11,7 @@ pub static GLASS: Element = Element {
     color: LIGHTEST_BLUE,
     mass: 10,
     id: 10,
-    periodic_reaction: Some(|mut this, world| {
+    periodic_reaction: PeriodicReaction::Some(|mut this, world| {
         for j in world.neighbors() {
             if world[j]
                 .clone()

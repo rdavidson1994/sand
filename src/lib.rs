@@ -1,5 +1,4 @@
 #![allow(clippy::new_without_default)]
-
 mod element;
 mod element_menu;
 mod eraser;
