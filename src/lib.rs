@@ -1,4 +1,5 @@
 #![allow(clippy::new_without_default)]
+mod app;
 mod conway;
 mod element;
 mod element_menu;
@@ -17,6 +18,7 @@ mod water;
 mod world;
 mod world_view;
 
+use crate::app::App;
 use crate::conway::CONWAY;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::element_menu::ElementMenu;
@@ -24,8 +26,8 @@ use crate::eraser::EraserSetup;
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
-use crate::lava::{LavaSetup, LAVA};
-use crate::metal::{ElectronSetup, ELECTRON, METAL};
+use crate::lava::LavaSetup;
+use crate::metal::{ElectronSetup, METAL};
 use crate::oil::OIL;
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
@@ -94,15 +96,12 @@ extern crate graphics;
 extern crate opengl_graphics;
 extern crate piston;
 
-use crate::snow::{SnowSetup, SNOW};
+use crate::snow::SnowSetup;
 use crate::world_view::CollisionView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventLoop, EventSettings, Events};
-use piston::input::{
-    Button, ButtonEvent, ButtonState, Key, MouseButton, MouseCursorEvent, RenderArgs, RenderEvent,
-    UpdateArgs, UpdateEvent,
-};
+use piston::input::{ButtonEvent, MouseCursorEvent, RenderEvent, UpdateEvent};
 use piston::window::WindowSettings;
 
 fn in_bounds(x: i32, y: i32) -> bool {
@@ -253,75 +252,6 @@ type CollisionSideEffect =
     fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
 type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
-struct App {
-    gl: GlGraphics,
-    turn: i32,
-    world: World,
-    element_menu: ElementMenu,
-    motion_queue: VecDeque<(usize, usize)>,
-}
-
-impl App {
-    fn render(&mut self, args: &RenderArgs) {
-        // let fps = (1.0 / args.ext_dt) as i32;
-        // if fps < 50 {
-        //     println!("FPS! :{}", fps);
-        // }
-        use graphics::*;
-
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-
-        let world_ref = &self.world;
-        self.gl.draw(args.viewport(), |c, gl| {
-            // Clear the screen.
-            clear(BLACK, gl);
-            let transform = c.transform;
-            for i in 0..WORLD_SIZE as usize {
-                if let Some(tile) = &world_ref[i] {
-                    let (x, y) = coords(i);
-                    let square = rectangle::square(
-                        (x * TILE_PIXELS) as f64,
-                        (y * TILE_PIXELS) as f64,
-                        TILE_PIXELS as f64,
-                    );
-                    // let color = {
-                    //     if tile.velocity.is_zero() {
-                    //         [0.0, 1.0, 0.0, 1.0]
-                    //     } else {
-                    //         [1.0, 0.0, 0.0, 1.0]
-                    //     }
-                    // };
-                    // rectangle(color, square, transform, gl);
-                    rectangle(*tile.color(), square, transform, gl);
-                }
-            }
-        });
-        let menu_ref = &mut self.element_menu;
-        self.gl.draw(args.viewport(), |mut c, gl| {
-            // Translate down by the height of the playing area
-            c.transform = c.transform.trans(0.0, PLAY_AREA_PIXEL_HEIGHT as f64);
-            // Then draw the element selection menu
-            menu_ref.draw(c, gl);
-        });
-    }
-
-    fn update(&mut self, _args: &UpdateArgs) {
-        let mut i = 0;
-        while i < UPDATES_PER_FRAME {
-            self.world.pause_particles();
-            if self.turn % GRAVITY_PERIOD == 0 {
-                self.world.apply_gravity();
-            }
-            if self.turn % REACTION_PERIOD == 0 {
-                self.world.apply_periodic_reactions();
-            }
-            apply_velocity(&mut self.world, &mut self.motion_queue);
-            self.turn += 1;
-            i += 1;
-        }
-    }
-}
-
 trait Pen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64);
     fn get_radius(&self) -> i32;
@@ -369,45 +299,48 @@ impl Pen for ElementPen {
 }
 
 pub fn game_loop() {
+    // Prepare the list of elements and their setup strcuts
     lazy_static_crate::initialize(&SETUPS);
     lazy_static_crate::initialize(&ELEMENTS);
+
+    // Create the world
     let mut world = World::new();
+
+    // Register each element's collision reactions based on setup structs
     for s in SETUPS.iter() {
         s.register_reactions(&mut world);
     }
 
-    let open_gl = OpenGL::V3_2;
-    let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
-
+    // Draw walls around the edge of the playing area
     util::create_walls(&mut world);
 
-    // Create a Glutin window.
+    // Create a new Glutin window.
+    let open_gl = OpenGL::V3_2;
+    let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
     let mut window: Window = WindowSettings::new("Falling sand", size)
         .graphics_api(open_gl)
         .exit_on_esc(true)
         .build()
         .unwrap();
 
-    let mut app = App {
+    // Create the app object to store our game state
+    let mut app = App::new(
+        GlGraphics::new(open_gl),
         world,
-        gl: GlGraphics::new(open_gl),
-        turn: 0,
-        motion_queue: VecDeque::new(),
-        element_menu: ElementMenu::new(SETUPS.as_ref(), 12),
-    };
+        ElementMenu::new(SETUPS.as_ref(), 12),
+        Box::new(ElementPen {
+            element: &SAND,
+            radius: 0,
+        }),
+    );
 
-    let mut selected_pen: Box<dyn Pen> = Box::new(ElementPen {
-        element: &SAND,
-        radius: 0,
-    });
-    let mut drawing = false;
-    let mut last_mouse_pos = (-1.0, -1.0);
-
+    // Set up the piston event loop
     let mut events = Events::new(EventSettings::new())
         .max_fps(60)
         .ups(60)
         .ups_reset(10);
 
+    // Map events we care about to the relevant handlers in our app
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
@@ -418,73 +351,11 @@ pub fn game_loop() {
         }
 
         if let Some(args) = e.button_args() {
-            match args.button {
-                Button::Mouse(MouseButton::Left) => match args.state {
-                    ButtonState::Press => {
-                        if last_mouse_pos.1 > PLAY_AREA_PIXEL_HEIGHT as f64 {
-                            // Let the menu handle it
-                            let (x, y) = (
-                                last_mouse_pos.0,
-                                last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64,
-                            );
-                            if let Some(pen) = app.element_menu.on_click(x, y) {
-                                selected_pen = Box::new(pen);
-                            }
-                        } else {
-                            drawing = true;
-                            selected_pen.draw(&mut app.world, last_mouse_pos.0, last_mouse_pos.1);
-                        }
-                    }
-                    ButtonState::Release => {
-                        drawing = false;
-                    }
-                },
-                Button::Keyboard(key) => {
-                    if let Some(element) = match key {
-                        Key::D1 => Some(&SAND),
-                        Key::D2 => Some(&FIRE),
-                        Key::D3 => Some(&GAS),
-                        Key::D4 => Some(&ROCK),
-                        Key::D5 => Some(&WATER),
-                        Key::D6 => Some(&WALL),
-                        Key::D7 => Some(&METAL),
-                        Key::D8 => Some(&ELECTRON),
-                        Key::D9 => Some(&LAVA),
-                        Key::D0 => Some(&SNOW),
-                        _ => None, // Key not recognized, do nothing
-                    } {
-                        selected_pen = Box::new(ElementPen {
-                            element,
-                            radius: selected_pen.get_radius(),
-                        });
-                    } else {
-                        match key {
-                            Key::RightBracket => {
-                                let radius = selected_pen.get_radius();
-                                if radius < 5 {
-                                    selected_pen.set_radius(radius + 1);
-                                }
-                            }
-                            Key::LeftBracket => {
-                                let radius = selected_pen.get_radius();
-                                if radius > 0 {
-                                    selected_pen.set_radius(radius - 1);
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
-            }
+            app.button(&args);
         }
 
         if let Some(args) = e.mouse_cursor_args() {
-            if drawing {
-                selected_pen.draw(&mut app.world, args[0], args[1]);
-            } else {
-                last_mouse_pos = (args[0], args[1]);
-            }
+            app.mouse_cursor(&args);
         }
     }
 }
