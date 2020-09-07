@@ -22,7 +22,7 @@ pub static CONWAY: Element = Element {
 
         for i in world.neighbors() {
             if let Some(tile) = &mut world[i] {
-                if tile.has_state(METAL.id(), CHARGED_HEAD) {
+                if tile.is_charged_metal() {
                     // If you meet an electron, become alive
                     this.edit_state(CONWAY.id(), ALIVE);
                     // Early return yourself

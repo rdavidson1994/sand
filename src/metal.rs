@@ -1,15 +1,22 @@
 use crate::element::{PeriodicReaction, PERFECT_RESTITUTION};
 use crate::world::World;
-use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
+use crate::{tile::Tile, Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
+use std::cmp;
 
 pub(crate) const NEUTRAL: u8 = 1;
 const NEUTRAL_COLOR: Color = [0.2, 0.2, 0.25, 1.0];
 
-pub const CHARGED_HEAD: u8 = 2;
+pub const CHARGED_HEAD: u8 = 255;
 const CHARGED_HEAD_COLOR: Color = [0.5, 0.5, 0.8, 1.0];
 
-const CHARGED_TAIL: u8 = 3;
+const CHARGED_TAIL: u8 = 2;
 const CHARGED_TAIL_COLOR: Color = [0.3, 0.3, 0.7, 1.0];
+
+impl Tile {
+    pub fn is_charged_metal(&self) -> bool {
+        self.element_id() == METAL.id && self.special_info() > 2
+    }
+}
 
 pub static METAL: Element = Element {
     mass: 10,
@@ -17,31 +24,33 @@ pub static METAL: Element = Element {
     id: 7,
     color: NEUTRAL_COLOR,
     state_colors: Some(|special_info| match special_info {
-        CHARGED_HEAD => &CHARGED_HEAD_COLOR,
         CHARGED_TAIL => &CHARGED_TAIL_COLOR,
-        _ => &NEUTRAL_COLOR,
+        NEUTRAL => &NEUTRAL_COLOR,
+        _ => &CHARGED_HEAD_COLOR,
     }),
 
     periodic_reaction: PeriodicReaction::Some(|mut this, world| {
         match this.special_info() {
-            CHARGED_HEAD => {
-                this.edit_state(METAL.id(), CHARGED_TAIL);
-            }
             CHARGED_TAIL => {
                 this.edit_state(METAL.id(), NEUTRAL);
             }
-            _ => {
+            NEUTRAL => {
                 let mut adjacent_heads = 0;
+                let mut min_charge = 255;
                 for i in world.neighbors() {
                     if let Some(tile) = &world[i] {
-                        if tile.has_state(METAL.id(), CHARGED_HEAD) {
+                        if tile.is_charged_metal() {
                             adjacent_heads += 1;
+                            min_charge = cmp::min(min_charge, tile.special_info() - 1)
                         }
                     }
                 }
-                if adjacent_heads == 1 || adjacent_heads == 2 {
-                    this.edit_state(METAL.id(), CHARGED_HEAD);
+                if adjacent_heads == 1 || adjacent_heads == 2 && min_charge > 2 {
+                    this.edit_state(METAL.id(), min_charge);
                 }
+            }
+            _ => {
+                this.edit_state(METAL.id(), CHARGED_TAIL);
             }
         }
         Some(this)
