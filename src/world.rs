@@ -325,11 +325,20 @@ impl World {
             .collision_side_effects // rustfmt-skip
             .get(&(first_element_id, last_element_id))
         {
-            let (first_after, second_after) = reaction(
+            let (mut first_after, mut second_after) = reaction(
                 first_tile,
                 second_tile,
                 CollisionView::new(self.grid.as_mut(), first_index, second_index),
             );
+            // Because the public methods on tiles edit the staged state,
+            // We have to save states here.
+            // We can't assume the periodic reaction loop will handle it for us.
+            if let Some(ref mut first_after) = first_after {
+                first_after.save_state();
+            }
+            if let Some(ref mut second_after) = second_after {
+                second_after.save_state();
+            }
             self[first_index] = first_after;
             self[second_index] = second_after;
             return true;
@@ -338,7 +347,16 @@ impl World {
             .collision_reactions // rustfmt-skip
             .get(&(first_element_id, last_element_id))
         {
-            let (first_after, second_after) = reaction(first_tile, second_tile);
+            let (mut first_after, mut second_after) = reaction(first_tile, second_tile);
+            // Because the public methods on tiles edit the staged state,
+            // We have to save states here.
+            // We can't assume the periodic reaction loop will handle it for us.
+            if let Some(ref mut first_after) = first_after {
+                first_after.save_state();
+            }
+            if let Some(ref mut second_after) = second_after {
+                second_after.save_state();
+            }
             self[first_index] = first_after;
             self[second_index] = second_after;
             return true;

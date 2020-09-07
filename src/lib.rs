@@ -1,4 +1,5 @@
 #![allow(clippy::new_without_default)]
+mod conway;
 mod element;
 mod element_menu;
 mod eraser;
@@ -16,6 +17,7 @@ mod water;
 mod world;
 mod world_view;
 
+use crate::conway::CONWAY;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::element_menu::ElementMenu;
 use crate::eraser::EraserSetup;
@@ -55,6 +57,7 @@ lazy_static! {
             Box::new(SnowSetup),
             default_setup(&OIL),
             Box::new(EraserSetup),
+            default_setup(&CONWAY),
         ]
     };
 }

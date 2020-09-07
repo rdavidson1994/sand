@@ -2,10 +2,10 @@ use crate::element::{PeriodicReaction, PERFECT_RESTITUTION};
 use crate::world::World;
 use crate::{Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
 
-const NEUTRAL: u8 = 1;
+pub(crate) const NEUTRAL: u8 = 1;
 const NEUTRAL_COLOR: Color = [0.2, 0.2, 0.25, 1.0];
 
-const CHARGED_HEAD: u8 = 2;
+pub const CHARGED_HEAD: u8 = 2;
 const CHARGED_HEAD_COLOR: Color = [0.5, 0.5, 0.8, 1.0];
 
 const CHARGED_TAIL: u8 = 3;
