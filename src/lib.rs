@@ -380,7 +380,6 @@ pub fn game_loop() {
     let size = [WINDOW_PIXEL_WIDTH as u32, WINDOW_PIXEL_HEIGHT as u32];
 
     util::create_walls(&mut world);
-    util::populate_world_water_bubble(&mut world);
 
     // Create a Glutin window.
     let mut window: Window = WindowSettings::new("Falling sand", size)
