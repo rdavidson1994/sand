@@ -97,7 +97,6 @@ extern crate opengl_graphics;
 extern crate piston;
 
 use crate::snow::SnowSetup;
-use crate::world_view::CollisionView;
 use glutin_window::GlutinWindow as Window;
 use opengl_graphics::{GlGraphics, OpenGL};
 use piston::event_loop::{EventLoop, EventSettings, Events};
@@ -247,10 +246,6 @@ fn coords(i: usize) -> (i32, i32) {
 fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
-
-type CollisionSideEffect =
-    fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
-type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 trait Pen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64);

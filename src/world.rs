@@ -1,16 +1,16 @@
 use crate::element::{Element, PeriodicReaction, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::world_view::{CollisionView, NeighborhoodView};
-use crate::{
-    adjacent_x, neighbor_count, CollisionReaction, CollisionSideEffect, PAUSE_VELOCITY,
-    WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
-};
+use crate::{adjacent_x, neighbor_count, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH};
 use rand::Rng;
 use std::ops::{Index, IndexMut};
 
 const EMPTY_TILE: Option<Tile> = None;
 
 type Grid = [Option<Tile>; (WORLD_HEIGHT * WORLD_WIDTH) as usize];
+type CollisionSideEffect =
+    fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
+type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
 pub struct World {
     grid: Box<Grid>,
