@@ -32,8 +32,8 @@ pub static LAVA: Element = Element {
                                     this.velocity.x.saturating_add(10),
                                 ),
                                 y: rand::thread_rng().gen_range(
-                                    this.velocity.x.saturating_sub(10),
-                                    this.velocity.x.saturating_add(10),
+                                    this.velocity.y.saturating_sub(10),
+                                    this.velocity.y.saturating_add(10),
                                 ),
                             },
                         ));
