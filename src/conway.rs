@@ -9,7 +9,7 @@ pub static CONWAY: Element = Element {
     flags: FIXED,
     color: [0.0, 0.0, 0.0, 1.0],
     mass: 10,
-    id: 14,
+    id: 13,
     state_colors: Some(|state| {
         if state == ALIVE {
             &[0.0, 1.0, 0.0, 1.0]

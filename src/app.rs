@@ -1,5 +1,5 @@
 use crate::{
-    apply_velocity, coords, element_menu::ElementMenu, world::World, ElementPen, Pen,
+    apply_velocity, coords, element_menu::ElementMenu, world::World, Pen,
     GRAVITY_PERIOD, PLAY_AREA_PIXEL_HEIGHT, REACTION_PERIOD, TILE_PIXELS, UPDATES_PER_FRAME,
     WORLD_SIZE,
 };
@@ -13,7 +13,7 @@ pub struct App {
     world: World,
     element_menu: ElementMenu,
     motion_queue: VecDeque<(usize, usize)>,
-    selected_pen: Box<ElementPen>,
+    selected_pen: Box<dyn Pen>,
     drawing: bool,
     last_mouse_pos: (f64, f64),
 }
@@ -23,7 +23,7 @@ impl App {
         gl: GlGraphics,
         world: World,
         element_menu: ElementMenu,
-        selected_pen: Box<ElementPen>,
+        selected_pen: Box<dyn Pen>,
     ) -> Self {
         Self {
             gl,
@@ -114,7 +114,7 @@ impl App {
                             self.last_mouse_pos.1 - PLAY_AREA_PIXEL_HEIGHT as f64,
                         );
                         if let Some(pen) = self.element_menu.on_click(x, y) {
-                            self.selected_pen = Box::new(pen);
+                            self.selected_pen = pen
                         }
                     } else {
                         self.drawing = true;

@@ -1,6 +1,6 @@
 extern crate graphics;
 
-use crate::{Color, ElementId, ElementPen, SetupSlice};
+use crate::{Color, ElementId, ElementPen, DeletePen, SetupSlice, Pen};
 use graphics::Context as GraphicsContext;
 use opengl_graphics::GlGraphics; // ugh
 
@@ -57,14 +57,19 @@ impl PenSizeButton {
     }
 }
 
-struct ElementButton {
+enum PenEffect {
+    DrawElement(ElementId),
+    Delete
+}
+
+struct PenButton {
     color: Color,
-    element_id: ElementId,
+    effect: PenEffect,
     selected: bool,
     upper_left: (f64, f64),
 }
 
-impl ElementButton {
+impl PenButton {
     fn contains(&self, x: f64, y: f64) -> bool {
         self.upper_left.0 < x
             && self.upper_left.0 + BUTTON_WIDTH > x
@@ -99,8 +104,8 @@ impl ElementButton {
 }
 
 pub struct ElementMenu {
-    element_buttons: Vec<ElementButton>,
-    selected_element_index: usize,
+    element_buttons: Vec<PenButton>,
+    selected_pen_index: usize,
     pen_size_buttons: Vec<PenSizeButton>,
     selected_pen_size: usize,
 }
@@ -110,12 +115,13 @@ impl ElementMenu {
         let mut buttons = vec![];
         let mut x: f64 = BUTTON_PADDING_X;
         let mut y: f64 = BUTTON_PADDING_Y;
+        // For each ElementSetup struct, create a corresponding pen
         for setup in setup_list {
             let color = *setup.build_element().get_color(1);
             let id = setup.get_id();
-            let button = ElementButton {
+            let button = PenButton {
                 color,
-                element_id: id,
+                effect: PenEffect::DrawElement(id),
                 selected: false,
                 upper_left: (x, y),
             };
@@ -127,6 +133,17 @@ impl ElementMenu {
                 x += BUTTON_WIDTH + 2.0 * BUTTON_PADDING_X;
             }
         }
+
+        // Create the delete pen at the end.
+        buttons.push(
+            PenButton {
+                color: [1.0, 0.0, 1.0, 1.0],
+                effect: PenEffect::Delete,
+                selected: false,
+                upper_left: (x, y),
+            }
+        );
+
 
         let pen_button_stride = PEN_BUTTON_SIZE + 2.0 * BUTTON_PADDING_X;
         let pen_buttons_left =
@@ -148,7 +165,7 @@ impl ElementMenu {
         ElementMenu {
             pen_size_buttons: pen_buttons,
             element_buttons: buttons,
-            selected_element_index: 0,
+            selected_pen_index: 0,
             selected_pen_size: 0,
         }
     }
@@ -163,16 +180,25 @@ impl ElementMenu {
         }
     }
 
-    pub fn build_pen(&self) -> ElementPen {
-        ElementPen {
-            element: self.element_buttons[self.selected_element_index]
-                .element_id
-                .get_element(),
-            radius: self.selected_pen_size as i32,
+    pub fn build_pen(&self) -> Box<dyn Pen> {
+        let effect = &self.element_buttons[self.selected_pen_index].effect;
+        match effect {
+            PenEffect::DrawElement(id) => {
+                Box::new(ElementPen {
+                    element: id.get_element(),
+                    radius: self.selected_pen_size as i32,
+                })
+            },
+            PenEffect::Delete => {
+                Box::new(DeletePen {
+                    radius: self.selected_pen_size as i32,
+                })
+            }
         }
+
     }
 
-    pub fn on_click(&mut self, x: f64, y: f64) -> Option<ElementPen> {
+    pub fn on_click(&mut self, x: f64, y: f64) -> Option<Box<dyn Pen>> {
         let mut clicked_index = None;
         for (i, button) in self.element_buttons.iter().enumerate() {
             if button.contains(x, y) {
@@ -182,9 +208,9 @@ impl ElementMenu {
         }
 
         if let Some(i) = clicked_index {
-            self.element_buttons[self.selected_element_index].selected = false;
+            self.element_buttons[self.selected_pen_index].selected = false;
             self.element_buttons[i].selected = true;
-            self.selected_element_index = i;
+            self.selected_pen_index = i;
             return Some(self.build_pen());
         }
 

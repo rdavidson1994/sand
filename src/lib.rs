@@ -3,7 +3,6 @@ mod app;
 mod conway;
 mod element;
 mod element_menu;
-mod eraser;
 mod fire;
 mod gas;
 mod glass;
@@ -22,7 +21,6 @@ use crate::app::App;
 use crate::conway::CONWAY;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::element_menu::ElementMenu;
-use crate::eraser::EraserSetup;
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
@@ -58,7 +56,6 @@ lazy_static! {
             Box::new(FireElementSetup),
             Box::new(SnowSetup),
             default_setup(&OIL),
-            Box::new(EraserSetup),
             default_setup(&CONWAY),
         ]
     };
@@ -247,10 +244,44 @@ fn point(x: i32, y: i32) -> usize {
     (x + y * WORLD_WIDTH) as usize
 }
 
-trait Pen {
+pub trait Pen {
     fn draw(&mut self, world: &mut World, x: f64, y: f64);
     fn get_radius(&self) -> i32;
     fn set_radius(&mut self, radius: i32);
+}
+
+pub struct DeletePen {
+    radius: i32
+}
+
+impl Pen for DeletePen {
+    fn draw(&mut self, world: &mut World, x: f64, y: f64) {
+        let x = x.trunc() as i32 / TILE_PIXELS;
+        let y = y.trunc() as i32 / TILE_PIXELS;
+        for x in x - self.radius..=x + self.radius {
+            for y in y - self.radius..=y + self.radius {
+                if in_bounds(x, y) {
+                    match &world[point(x, y)] {
+                        Some(tile) if tile.element_id() != WALL.id => {
+                            // Destroy non-wall tiles
+                            world[point(x, y)] = None
+                        }
+                        _ => {
+                            // Leave walls and empty tiles alone
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn get_radius(&self) -> i32 {
+        self.radius
+    }
+
+    fn set_radius(&mut self, radius: i32) {
+        self.radius = radius
+    }
 }
 
 pub struct ElementPen {
