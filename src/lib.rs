@@ -328,9 +328,10 @@ pub fn game_loop() {
     // Prepare the list of elements and their setup strcuts
     lazy_static_crate::initialize(&SETUPS);
     lazy_static_crate::initialize(&ELEMENTS);
+    let elem_count = SETUPS.len();
 
     // Create the world
-    let mut world = World::new();
+    let mut world = World::new(elem_count);
 
     // Register each element's collision reactions based on setup structs
     for s in SETUPS.iter() {

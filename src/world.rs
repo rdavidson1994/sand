@@ -1,9 +1,9 @@
-use crate::element::{Element, PeriodicReaction, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
+use crate::element::{EFlag, Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT, PeriodicReaction};
 use crate::tile::{ElementState, Tile};
 use crate::world_view::{CollisionView, NeighborhoodView};
 use crate::{adjacent_x, neighbor_count, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH};
 use rand::Rng;
-use std::ops::{Index, IndexMut};
+use std::{collections::HashMap, ops::{Index, IndexMut}};
 
 const EMPTY_TILE: Option<Tile> = None;
 
@@ -12,10 +12,75 @@ type CollisionSideEffect =
     fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
 type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
+
+struct TableRow<T> {
+    union_flags : EFlag,
+    entries: Vec<(EFlag, T)>
+}
+impl<T> TableRow<T> {
+    fn new() -> TableRow<T> {
+        TableRow {
+            union_flags: 0,
+            entries: Vec::new()
+        }
+    }
+
+    fn insert_entry(&mut self, entry: T, flags: EFlag) {
+        self.union_flags |= flags;
+        self.entries.push((flags, entry));
+    }
+
+    fn retrieve_entry(&self, flags: EFlag) -> Option<&T> {
+        // If the provided flag byte doesn't have any of
+        // the flags that any of the reactions for this element
+        // have requested, fail early.
+        if self.union_flags & flags == 0 {
+            return None;
+        }
+        // Otherwise, look for an entry for which the provided
+        // flag bytes contains all the necessary flags.
+        for entry in &self.entries {
+            if entry.0 & flags == entry.0 {
+                // If you find one, return the reaction
+                return Some(&entry.1);
+            }
+        }
+        // otherwise, return nothing.
+        return None;
+    }
+}
+pub struct ElementAndFlagTable<T> {
+    content: Vec<TableRow<T>>
+}
+
+impl<T> ElementAndFlagTable<T> {
+    pub fn new(element_count: usize) -> Self {
+        let mut content = Vec::new();
+        while element_count > content.len() {
+            content.push(TableRow::new())
+        }
+        ElementAndFlagTable {
+            content
+        }
+    }
+    pub fn insert_entry(&mut self, entry: T, flags: EFlag, element: &Element) {
+        // Push empty rows until we have enough to correctly
+        // position a row for this element
+        let row_for_element = &mut self.content[element.id as usize];
+        row_for_element.insert_entry(entry, flags);
+    }
+
+    pub fn retrieve_entry(&self, flags: EFlag, element: &Element) -> Option<&T> {
+        let row_for_element = & self.content[element.id as usize];
+        row_for_element.retrieve_entry(flags)
+    }
+} 
+
 pub struct World {
     grid: Box<Grid>,
-    collision_side_effects: std::collections::HashMap<(u8, u8), CollisionSideEffect>,
-    collision_reactions: std::collections::HashMap<(u8, u8), CollisionReaction>,
+    collision_side_effects: HashMap<(u8, u8), CollisionSideEffect>,
+    collision_reactions: HashMap<(u8, u8), CollisionReaction>,
+    collision_reactions_by_flags: ElementAndFlagTable<CollisionReaction>
 }
 
 pub struct Neighborhood<'a, T> {
@@ -54,7 +119,7 @@ fn mutate_neighborhood<T>(slice: &mut [T], index: usize) -> (&mut T, Neighborhoo
     (&mut center[0], Neighborhood::new(before, after))
 }
 
-pub(crate) trait PairwiseMutate {
+pub trait PairwiseMutate {
     type T;
     fn mutate_pair(&mut self, first: usize, second: usize) -> (&mut Self::T, &mut Self::T);
 }
@@ -91,11 +156,12 @@ impl Index<usize> for World {
 }
 
 impl World {
-    pub fn new() -> World {
+    pub fn new(elem_count: usize) -> World {
         World {
             grid: Box::new([EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize]),
-            collision_side_effects: std::collections::HashMap::new(),
-            collision_reactions: std::collections::HashMap::new(),
+            collision_side_effects: HashMap::new(),
+            collision_reactions: HashMap::new(),
+            collision_reactions_by_flags: ElementAndFlagTable::new(elem_count)
         }
     }
 
@@ -256,6 +322,15 @@ impl World {
         }
     }
 
+    pub fn register_flag_collision_reaction(
+        &mut self,
+        element: &Element,
+        flags: EFlag,
+        reaction: CollisionReaction
+    ) {
+        self.collision_reactions_by_flags.insert_entry(reaction, flags, element)
+    }
+
     pub fn register_collision_reaction(
         &mut self,
         element1: &Element,
@@ -267,7 +342,7 @@ impl World {
         if second_id < first_id {
             panic!(
                 "Incorrect collision reaction registration for ids {} {}:\
-                Ensure that elements are in ascending order or id",
+                Ensure that elements are in ascending order of id",
                 first_id, second_id
             )
         }
@@ -292,7 +367,7 @@ impl World {
         if second_id < first_id {
             panic!(
                 "Incorrect collision reaction registration for ids {} {}:\
-                Ensure that elements are in ascending order or id",
+                Ensure that elements are in ascending order of id",
                 first_id, second_id
             )
         }
@@ -360,6 +435,32 @@ impl World {
             self[first_index] = first_after;
             self[second_index] = second_after;
             return true;
+        }
+
+        let mut attempt = 0;
+        while attempt < 2 {
+            let swap : bool = attempt == 0;
+            let (element, flags) = if swap {
+                (first_tile.get_element(), second_tile.get_element().flags)
+            } else {
+                (second_tile.get_element(), first_tile.get_element().flags)
+            };
+            let opt_reaction = self.collision_reactions_by_flags.retrieve_entry(flags, element);
+            if let Some(reaction) = opt_reaction
+            {
+                if swap {
+                    let swapped_output_tiles = reaction(second_tile, first_tile);
+                    self[first_index] = swapped_output_tiles.1;
+                    self[second_index] = swapped_output_tiles.0;
+                }
+                else {
+                    let output_tiles = reaction(first_tile, second_tile);
+                    self[first_index] = output_tiles.0;
+                    self[second_index] = output_tiles.1;
+                }
+                return true;
+            }
+            attempt += 1;
         }
         false
     }
