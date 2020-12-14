@@ -11,6 +11,7 @@ mod metal;
 mod oil;
 mod simple_elements;
 mod snow;
+mod glue;
 mod tile;
 mod util;
 mod water;
@@ -31,6 +32,7 @@ use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::WATER;
 use crate::world::World;
+use crate::glue::{GlueSetup, SOLID_GLUE};
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use rand::{thread_rng, Rng};
@@ -57,6 +59,8 @@ lazy_static! {
             Box::new(SnowSetup),
             default_setup(&OIL),
             default_setup(&CONWAY),
+            Box::new(GlueSetup),
+            default_setup(&SOLID_GLUE)
         ]
     };
 }

@@ -209,7 +209,7 @@ impl World {
                     self.swap(source, destination);
                 }
                 //self.trigger_collision_reactions(source, destination);
-                self.trigger_collision_side_effects(source, destination);
+                self.trigger_collision_effects(source, destination);
             }
         }
     }
@@ -381,7 +381,7 @@ impl World {
         }
     }
 
-    pub fn trigger_collision_side_effects(&mut self, source: usize, destination: usize) -> bool {
+    pub fn trigger_collision_effects(&mut self, source: usize, destination: usize) -> bool {
         // If we can't unwrap here, a collision occurred in empty space
         let source_tile = self[source].clone().unwrap();
         let destination_tile = self[destination].clone().unwrap();
@@ -440,7 +440,7 @@ impl World {
         let mut attempt = 0;
         while attempt < 2 {
             let swap : bool = attempt == 0;
-            let (element, flags) = if swap {
+            let (element, flags) = if !swap {
                 (first_tile.get_element(), second_tile.get_element().flags)
             } else {
                 (second_tile.get_element(), first_tile.get_element().flags)
