@@ -78,7 +78,7 @@ lazy_static! {
     };
 }
 
-const MENU_PIXEL_HEIGHT: i32 = 40;
+const MENU_PIXEL_HEIGHT: i32 = 70;
 const WORLD_WIDTH: i32 = 200;
 const WORLD_HEIGHT: i32 = 200;
 const WORLD_SIZE: i32 = WORLD_HEIGHT * WORLD_WIDTH;

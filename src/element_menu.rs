@@ -6,7 +6,7 @@ use opengl_graphics::GlGraphics; // ugh
 
 const SELECTION_HIGHLIGHT: Color = [0.8, 0.8, 0.1, 1.0];
 const BUTTON_WIDTH: f64 = 30.0;
-const BUTTON_HEIGHT: f64 = 10.0;
+const BUTTON_HEIGHT: f64 = 25.0;
 const PEN_BUTTON_SIZE: f64 = 10.0;
 const BUTTON_PADDING_X: f64 = 5.0;
 const BUTTON_PADDING_Y: f64 = 5.0;
