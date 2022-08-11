@@ -1,4 +1,4 @@
-use crate::element::{PeriodicReaction, PERFECT_RESTITUTION};
+use crate::element::{PeriodicReaction, FLUID, GRAVITY, PAUSE_EXEMPT, PERFECT_RESTITUTION};
 use crate::world::World;
 use crate::{tile::Tile, Color, Element, ElementId, ElementSetup, ELEMENT_DEFAULT, FIXED};
 use std::cmp;
@@ -11,6 +11,8 @@ const CHARGED_HEAD_COLOR: Color = [0.5, 0.5, 0.8, 1.0];
 
 const CHARGED_TAIL: u8 = 2;
 const CHARGED_TAIL_COLOR: Color = [0.3, 0.3, 0.7, 1.0];
+
+const LIQUID_COLOR: Color = [0.7, 0.3, 0.5, 1.0];
 
 impl Tile {
     pub fn is_charged_metal(&self) -> bool {
@@ -30,6 +32,9 @@ pub static METAL: Element = Element {
     }),
 
     periodic_reaction: PeriodicReaction::Some(|mut this, world| {
+        if this.temperature > 150 {
+            this.set_element(LIQUID_METAL.id())
+        }
         match this.special_info() {
             CHARGED_TAIL => {
                 this.edit_state(METAL.id(), NEUTRAL);
@@ -55,7 +60,21 @@ pub static METAL: Element = Element {
         }
         Some(this)
     }),
-    //..ELEMENT_DEFAULT
+    ..ELEMENT_DEFAULT
+};
+
+pub static LIQUID_METAL: Element = Element {
+    flags: FLUID | GRAVITY | PAUSE_EXEMPT,
+    color: LIQUID_COLOR,
+    mass: 10,
+    id: 17,
+    periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
+        if this.temperature < 149 {
+            this.set_element(METAL.id())
+        }
+        Some(this)
+    }),
+    ..ELEMENT_DEFAULT
 };
 
 pub static ELECTRON: Element = Element {
@@ -67,6 +86,7 @@ pub static ELECTRON: Element = Element {
         lifetime: 8,
         rarity: 8,
     },
+    default_temperature: 300,
     ..ELEMENT_DEFAULT
 };
 

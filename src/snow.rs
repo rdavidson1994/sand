@@ -15,11 +15,7 @@ pub static SNOW: Element = Element {
         }
         Some(this)
     }),
-    // periodic_reaction: PeriodicReaction::DecayInto {
-    //     element_id: WATER.id(),
-    //     lifetime: 100,
-    //     rarity: 255,
-    // },
+    default_temperature: -20,
     ..ELEMENT_DEFAULT
 };
 

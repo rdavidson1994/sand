@@ -1,6 +1,6 @@
 use crate::element::{Element, PeriodicReaction, GRAVITY, NO_FLAGS};
-use crate::FIXED;
 use crate::fire::{FIRE, MAKES_ASH};
+use crate::FIXED;
 
 pub static ELEMENT_DEFAULT: Element = Element {
     flags: NO_FLAGS,
@@ -9,6 +9,7 @@ pub static ELEMENT_DEFAULT: Element = Element {
     id: 255,
     periodic_reaction: PeriodicReaction::None,
     state_colors: None,
+    default_temperature: 20,
 };
 
 pub static SAND: Element = Element {

@@ -1,9 +1,12 @@
-use crate::element::{EFlag, Element, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT, PeriodicReaction};
+use crate::element::{EFlag, Element, PeriodicReaction, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::world_view::{CollisionView, NeighborhoodView};
 use crate::{adjacent_x, neighbor_count, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH};
 use rand::Rng;
-use std::{collections::HashMap, ops::{Index, IndexMut}};
+use std::{
+    collections::HashMap,
+    ops::{Index, IndexMut},
+};
 
 const EMPTY_TILE: Option<Tile> = None;
 
@@ -12,16 +15,15 @@ type CollisionSideEffect =
     fn(Tile, Tile, CollisionView<Option<Tile>>) -> (Option<Tile>, Option<Tile>);
 type CollisionReaction = fn(Tile, Tile) -> (Option<Tile>, Option<Tile>);
 
-
 struct TableRow<T> {
-    union_flags : EFlag,
-    entries: Vec<(EFlag, T)>
+    union_flags: EFlag,
+    entries: Vec<(EFlag, T)>,
 }
 impl<T> TableRow<T> {
     fn new() -> TableRow<T> {
         TableRow {
             union_flags: 0,
-            entries: Vec::new()
+            entries: Vec::new(),
         }
     }
 
@@ -50,7 +52,7 @@ impl<T> TableRow<T> {
     }
 }
 pub struct ElementAndFlagTable<T> {
-    content: Vec<TableRow<T>>
+    content: Vec<TableRow<T>>,
 }
 
 impl<T> ElementAndFlagTable<T> {
@@ -59,9 +61,7 @@ impl<T> ElementAndFlagTable<T> {
         while element_count > content.len() {
             content.push(TableRow::new())
         }
-        ElementAndFlagTable {
-            content
-        }
+        ElementAndFlagTable { content }
     }
     pub fn insert_entry(&mut self, entry: T, flags: EFlag, element: &Element) {
         // Push empty rows until we have enough to correctly
@@ -71,16 +71,16 @@ impl<T> ElementAndFlagTable<T> {
     }
 
     pub fn retrieve_entry(&self, flags: EFlag, element: &Element) -> Option<&T> {
-        let row_for_element = & self.content[element.id as usize];
+        let row_for_element = &self.content[element.id as usize];
         row_for_element.retrieve_entry(flags)
     }
-} 
+}
 
 pub struct World {
     grid: Box<Grid>,
     collision_side_effects: HashMap<(u8, u8), CollisionSideEffect>,
     collision_reactions: HashMap<(u8, u8), CollisionReaction>,
-    collision_reactions_by_flags: ElementAndFlagTable<CollisionReaction>
+    collision_reactions_by_flags: ElementAndFlagTable<CollisionReaction>,
 }
 
 pub struct Neighborhood<'a, T> {
@@ -161,7 +161,7 @@ impl World {
             grid: Box::new([EMPTY_TILE; (WORLD_HEIGHT * WORLD_WIDTH) as usize]),
             collision_side_effects: HashMap::new(),
             collision_reactions: HashMap::new(),
-            collision_reactions_by_flags: ElementAndFlagTable::new(elem_count)
+            collision_reactions_by_flags: ElementAndFlagTable::new(elem_count),
         }
     }
 
@@ -191,7 +191,7 @@ impl World {
                 self.swap(source, destination);
             }
             (Some(ref mut s), Some(ref mut d)) => {
-                let new_temperature = (s.temperature + d.temperature)/2;
+                let new_temperature = (s.temperature + d.temperature) / 2;
                 s.temperature = new_temperature;
                 d.temperature = new_temperature;
 
@@ -330,9 +330,10 @@ impl World {
         &mut self,
         element: &Element,
         flags: EFlag,
-        reaction: CollisionReaction
+        reaction: CollisionReaction,
     ) {
-        self.collision_reactions_by_flags.insert_entry(reaction, flags, element)
+        self.collision_reactions_by_flags
+            .insert_entry(reaction, flags, element)
     }
 
     pub fn register_collision_reaction(
@@ -443,21 +444,21 @@ impl World {
 
         let mut attempt = 0;
         while attempt < 2 {
-            let swap : bool = attempt == 0;
+            let swap: bool = attempt == 0;
             let (element, flags) = if !swap {
                 (first_tile.get_element(), second_tile.get_element().flags)
             } else {
                 (second_tile.get_element(), first_tile.get_element().flags)
             };
-            let opt_reaction = self.collision_reactions_by_flags.retrieve_entry(flags, element);
-            if let Some(reaction) = opt_reaction
-            {
+            let opt_reaction = self
+                .collision_reactions_by_flags
+                .retrieve_entry(flags, element);
+            if let Some(reaction) = opt_reaction {
                 if swap {
                     let swapped_output_tiles = reaction(second_tile, first_tile);
                     self[first_index] = swapped_output_tiles.1;
                     self[second_index] = swapped_output_tiles.0;
-                }
-                else {
+                } else {
                     let output_tiles = reaction(first_tile, second_tile);
                     self[first_index] = output_tiles.0;
                     self[second_index] = output_tiles.1;

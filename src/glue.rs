@@ -1,4 +1,4 @@
-use crate::element::{Element, ElementId, ElementSetup, FIXED, FLUID, GRAVITY, PeriodicReaction};
+use crate::element::{Element, ElementId, ElementSetup, PeriodicReaction, FIXED, FLUID, GRAVITY};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::world::World;
 
@@ -30,7 +30,7 @@ impl ElementSetup for GlueSetup {
     }
 }
 
-pub static SOLID_GLUE : Element = Element {
+pub static SOLID_GLUE: Element = Element {
     flags: FIXED,
     color: [0.8, 0.8, 0.7, 1.0],
     mass: 10,
@@ -38,8 +38,7 @@ pub static SOLID_GLUE : Element = Element {
     periodic_reaction: PeriodicReaction::DecayInto {
         element_id: GLUE.id(),
         lifetime: 10,
-        rarity: 100
+        rarity: 100,
     },
     ..ELEMENT_DEFAULT
 };
-

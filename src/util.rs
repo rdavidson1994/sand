@@ -84,7 +84,8 @@ pub fn create_walls(world: &mut World) {
     }
     for i in 0..WORLD_HEIGHT {
         world[point(0, i)] = Some(Tile::stationary(ElementState::default(WALL.id()), 20));
-        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::default(WALL.id()), 20));
+        world[point(WORLD_WIDTH - 1, i)] =
+            Some(Tile::stationary(ElementState::default(WALL.id()), 20));
     }
 }
 

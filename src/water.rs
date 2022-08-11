@@ -1,4 +1,6 @@
-use crate::element::{Element, PeriodicReaction, FLUID, GRAVITY, PAUSE_EXEMPT, PERFECT_RESTITUTION};
+use crate::element::{
+    Element, PeriodicReaction, FLUID, GRAVITY, PAUSE_EXEMPT, PERFECT_RESTITUTION,
+};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::snow::SNOW;
 use rand::Rng;
@@ -12,11 +14,9 @@ pub static WATER: Element = Element {
         if this.temperature > 22 {
             // Over designated boiling point, become steam
             this.set_element(STEAM.id())
-        }
-        else if this.temperature < 0 {
+        } else if this.temperature < 0 {
             this.set_element(SNOW.id())
-        }
-        else {
+        } else {
             // Water "jiggles" slightly
             this.velocity.x += rand::thread_rng().gen_range(-3, 3 + 1);
         }
@@ -25,7 +25,7 @@ pub static WATER: Element = Element {
     ..ELEMENT_DEFAULT
 };
 
-pub static STEAM : Element = Element {
+pub static STEAM: Element = Element {
     flags: PAUSE_EXEMPT | PERFECT_RESTITUTION | FLUID,
     color: [0.8, 0.8, 1.0, 1.0],
     mass: 8,
@@ -36,5 +36,5 @@ pub static STEAM : Element = Element {
         }
         Some(this)
     }),
-    state_colors: None,
+    ..ELEMENT_DEFAULT
 };

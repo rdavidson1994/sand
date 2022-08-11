@@ -1,7 +1,6 @@
 use crate::{
-    apply_velocity, coords, element_menu::ElementMenu, world::World, Pen,
-    GRAVITY_PERIOD, PLAY_AREA_PIXEL_HEIGHT, REACTION_PERIOD, TILE_PIXELS, UPDATES_PER_FRAME,
-    WORLD_SIZE,
+    apply_velocity, coords, element_menu::ElementMenu, world::World, Pen, GRAVITY_PERIOD,
+    PLAY_AREA_PIXEL_HEIGHT, REACTION_PERIOD, TILE_PIXELS, UPDATES_PER_FRAME, WORLD_SIZE,
 };
 use opengl_graphics::GlGraphics;
 use piston::{Button, ButtonArgs, ButtonState, MouseButton, RenderArgs, UpdateArgs};

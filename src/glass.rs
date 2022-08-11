@@ -1,4 +1,4 @@
-use crate::{element::PeriodicReaction, Color, Element, FIXED};
+use crate::{element::PeriodicReaction, simple_elements::ELEMENT_DEFAULT, Color, Element, FIXED};
 
 static BLACK: Color = [0.1, 0.1, 0.2, 1.0];
 static LIGHTEST_BLUE: Color = [0.9, 0.9, 1.0, 1.0];
@@ -32,4 +32,5 @@ pub static GLASS: Element = Element {
         GLASS_INNER => &BLACK,
         _ => &LIGHTEST_BLUE,
     }),
+    ..ELEMENT_DEFAULT
 };

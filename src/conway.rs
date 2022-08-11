@@ -1,5 +1,6 @@
 use crate::element::{Element, PeriodicReaction, FIXED};
 use crate::metal::{CHARGED_HEAD, METAL, NEUTRAL};
+use crate::simple_elements::ELEMENT_DEFAULT;
 
 const DEAD: u8 = 1;
 const ALIVE: u8 = 2;
@@ -53,4 +54,5 @@ pub static CONWAY: Element = Element {
         }
         Some(this)
     }),
+    ..ELEMENT_DEFAULT
 };

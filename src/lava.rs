@@ -36,7 +36,7 @@ pub static LAVA: Element = Element {
                                     this.velocity.y.saturating_add(10),
                                 ),
                             },
-                            this.temperature
+                            this.temperature,
                         ));
                         // Every time you create fire, roll to cool into rock
                         if rand::thread_rng().gen_range(0, 30) == 0 {
@@ -48,6 +48,7 @@ pub static LAVA: Element = Element {
         }
         Some(this)
     }),
+    default_temperature: 300,
     ..ELEMENT_DEFAULT
 };
 

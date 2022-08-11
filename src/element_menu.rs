@@ -1,6 +1,6 @@
 extern crate graphics;
 
-use crate::{Color, ElementId, ElementPen, DeletePen, SetupSlice, Pen};
+use crate::{Color, DeletePen, ElementId, ElementPen, Pen, SetupSlice};
 use graphics::Context as GraphicsContext;
 use opengl_graphics::GlGraphics; // ugh
 
@@ -59,7 +59,7 @@ impl PenSizeButton {
 
 enum PenEffect {
     DrawElement(ElementId),
-    Delete
+    Delete,
 }
 
 struct PenButton {
@@ -135,15 +135,12 @@ impl ElementMenu {
         }
 
         // Create the delete pen at the end.
-        buttons.push(
-            PenButton {
-                color: [1.0, 0.0, 1.0, 1.0],
-                effect: PenEffect::Delete,
-                selected: false,
-                upper_left: (x, y),
-            }
-        );
-
+        buttons.push(PenButton {
+            color: [1.0, 0.0, 1.0, 1.0],
+            effect: PenEffect::Delete,
+            selected: false,
+            upper_left: (x, y),
+        });
 
         let pen_button_stride = PEN_BUTTON_SIZE + 2.0 * BUTTON_PADDING_X;
         let pen_buttons_left =
@@ -183,19 +180,14 @@ impl ElementMenu {
     pub fn build_pen(&self) -> Box<dyn Pen> {
         let effect = &self.element_buttons[self.selected_pen_index].effect;
         match effect {
-            PenEffect::DrawElement(id) => {
-                Box::new(ElementPen {
-                    element: id.get_element(),
-                    radius: self.selected_pen_size as i32,
-                })
-            },
-            PenEffect::Delete => {
-                Box::new(DeletePen {
-                    radius: self.selected_pen_size as i32,
-                })
-            }
+            PenEffect::DrawElement(id) => Box::new(ElementPen {
+                element: id.get_element(),
+                radius: self.selected_pen_size as i32,
+            }),
+            PenEffect::Delete => Box::new(DeletePen {
+                radius: self.selected_pen_size as i32,
+            }),
         }
-
     }
 
     pub fn on_click(&mut self, x: f64, y: f64) -> Option<Box<dyn Pen>> {

@@ -36,6 +36,7 @@ pub static FIRE: Element = Element {
 
         Some(this)
     }),
+    default_temperature: 300,
     ..ELEMENT_DEFAULT
 };
 
@@ -59,7 +60,7 @@ impl ElementSetup for FireElementSetup {
                             x: rng.gen_range(-10, 10),
                             y: rng.gen_range(-10, 10),
                         },
-                        (sand.temperature + fire.temperature) / 2
+                        (sand.temperature + fire.temperature) / 2,
                     ));
                 }
             });

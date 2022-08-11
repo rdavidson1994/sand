@@ -6,12 +6,12 @@ mod element_menu;
 mod fire;
 mod gas;
 mod glass;
+mod glue;
 mod lava;
 mod metal;
 mod oil;
 mod simple_elements;
 mod snow;
-mod glue;
 mod tile;
 mod util;
 mod water;
@@ -25,14 +25,14 @@ use crate::element_menu::ElementMenu;
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
+use crate::glue::{GlueSetup, SOLID_GLUE};
 use crate::lava::{LavaSetup, LAVA};
-use crate::metal::{ElectronSetup, METAL};
+use crate::metal::{ElectronSetup, LIQUID_METAL, METAL};
 use crate::oil::OIL;
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::{STEAM, WATER};
 use crate::world::World;
-use crate::glue::{GlueSetup, SOLID_GLUE};
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
 use metal::ELECTRON;
@@ -64,6 +64,7 @@ lazy_static! {
             Box::new(GlueSetup),
             default_setup(&SOLID_GLUE),
             default_setup(&STEAM),
+            default_setup(&LIQUID_METAL),
         ]
     };
 }
@@ -258,7 +259,7 @@ pub trait Pen {
 }
 
 pub struct DeletePen {
-    radius: i32
+    radius: i32,
 }
 
 impl Pen for DeletePen {
@@ -311,20 +312,11 @@ impl Pen for ElementPen {
                     }
                 };
                 if in_bounds(x, y) && world[point(x, y)].is_none() {
-                    let id = self.element.id;
                     world[point(x, y)] = Some(Tile::new(
                         ElementState::default(self.element.id()),
                         Vector { x: 0, y: 0 },
                         velocity,
-                        if id == FIRE.id || id == LAVA.id || id == ELECTRON.id {
-                            300
-                        } else if id == SNOW.id {
-                            -20
-                        } else {
-                            20
-                        }
-
-                        //false,
+                        self.element.default_temperature, //false,
                     ))
                 }
             }

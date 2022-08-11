@@ -95,6 +95,7 @@ pub struct Element {
     pub id: u8,
     pub periodic_reaction: PeriodicReaction,
     pub state_colors: Option<fn(u8) -> &'static Color>,
+    pub default_temperature: i16,
 }
 
 impl Element {
