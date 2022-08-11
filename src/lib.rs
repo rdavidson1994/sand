@@ -26,7 +26,7 @@ use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
 use crate::glue::{GlueSetup, SOLID_GLUE};
-use crate::lava::{LavaSetup, LAVA};
+use crate::lava::LavaSetup;
 use crate::metal::{ElectronSetup, LIQUID_METAL, METAL};
 use crate::oil::OIL;
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
@@ -35,9 +35,7 @@ use crate::water::{STEAM, WATER};
 use crate::world::World;
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
-use metal::ELECTRON;
 use rand::{thread_rng, Rng};
-use snow::SNOW;
 use std::collections::VecDeque;
 
 type SetupList = Vec<Box<dyn ElementSetup>>;
