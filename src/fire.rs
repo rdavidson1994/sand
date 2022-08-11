@@ -24,15 +24,7 @@ pub static FIRE: Element = Element {
     color: [1.0, 0.0, 0.0, 1.0],
     mass: 3,
     id: 4,
-    periodic_reaction: PeriodicReaction::Some(|mut this, mut w| {
-        w.for_each_neighbor(|opt_tile| {
-            if let Some(tile) = opt_tile {
-                if tile.element_id() == SAND.id {
-                    tile.edit_state(FIRE.id(), MAKES_ASH);
-                }
-            }
-        });
-
+    periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
         if thread_rng().gen_range(0, 100) == 0 {
             return if thread_rng().gen_range(0, 3) == 0 && this.special_info() == MAKES_ASH {
                 this.set_element(ASH.id());
@@ -67,6 +59,7 @@ impl ElementSetup for FireElementSetup {
                             x: rng.gen_range(-10, 10),
                             y: rng.gen_range(-10, 10),
                         },
+                        (sand.temperature + fire.temperature) / 2
                     ));
                 }
             });

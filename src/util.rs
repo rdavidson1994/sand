@@ -10,6 +10,7 @@ fn populate_world_bullet(world: &mut World) {
         ElementState::default(GAS.id()),
         Vector { x: 0, y: 0 },
         Vector { x: 127, y: 0 },
+        20,
         //false,
     ))
 }
@@ -23,6 +24,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
                 //true,
+                20,
             ))
         }
     }
@@ -33,6 +35,7 @@ pub fn populate_world_water_bubble(world: &mut World) {
                 ElementState::default(SAND.id()),
                 Vector { x: 0, y: -1 },
                 Vector { x: 0, y: 0 },
+                20,
                 //false,
             ))
         }
@@ -48,6 +51,7 @@ pub fn populate_world_pileup(world: &mut World) {
                 ElementState::default(GAS.id()),
                 Vector { x: 0, y: 0 },
                 Vector { x: 0, y: 0 },
+                20,
                 //false,
             ))
         }
@@ -65,6 +69,7 @@ pub fn populate_world_pileup(world: &mut World) {
                     x: -10,
                     y: 0, //10,
                 },
+                20,
                 //false,
             ))
         }
@@ -73,13 +78,13 @@ pub fn populate_world_pileup(world: &mut World) {
 
 pub fn create_walls(world: &mut World) {
     for i in 0..WORLD_WIDTH {
-        world[point(i, 0)] = Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(i, 0)] = Some(Tile::stationary(ElementState::default(WALL.id()), 20));
         world[point(i, WORLD_HEIGHT - 1)] =
-            Some(Tile::stationary(ElementState::default(WALL.id())));
+            Some(Tile::stationary(ElementState::default(WALL.id()), 20));
     }
     for i in 0..WORLD_HEIGHT {
-        world[point(0, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
-        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::default(WALL.id())));
+        world[point(0, i)] = Some(Tile::stationary(ElementState::default(WALL.id()), 20));
+        world[point(WORLD_WIDTH - 1, i)] = Some(Tile::stationary(ElementState::default(WALL.id()), 20));
     }
 }
 
@@ -104,6 +109,7 @@ fn populate_world(world: &mut World) {
                 x: rng.gen_range(-1, 1),
                 y: rng.gen_range(-1, 1),
             },
+            20,
             //false,
         ))
     }

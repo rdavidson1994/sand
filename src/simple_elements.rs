@@ -1,5 +1,6 @@
 use crate::element::{Element, PeriodicReaction, GRAVITY, NO_FLAGS};
 use crate::FIXED;
+use crate::fire::{FIRE, MAKES_ASH};
 
 pub static ELEMENT_DEFAULT: Element = Element {
     flags: NO_FLAGS,
@@ -15,6 +16,13 @@ pub static SAND: Element = Element {
     color: [1.0, 1.0, 0.5, 1.0],
     mass: 10,
     id: 2,
+    periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
+        if this.temperature > 100 {
+            this.edit_state(FIRE.id(), MAKES_ASH);
+            this.temperature = 300
+        }
+        Some(this)
+    }),
     ..ELEMENT_DEFAULT
 };
 

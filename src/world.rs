@@ -191,6 +191,10 @@ impl World {
                 self.swap(source, destination);
             }
             (Some(ref mut s), Some(ref mut d)) => {
+                let new_temperature = (s.temperature + d.temperature)/2;
+                s.temperature = new_temperature;
+                d.temperature = new_temperature;
+
                 if adjacent_x(source, destination) {
                     if d.has_flag(FIXED) {
                         s.reflect_velocity_x();

@@ -36,6 +36,7 @@ impl ElementSetup for GasSetup {
                         ElementState::default(FIRE.id()),
                         Vector { x: 0, y: 0 },
                         Vector { x: 0, y: 0 },
+                        (gas.temperature + fire.temperature) / 2
                     ),
                 };
                 new_tile.velocity.x = new_tile.velocity.x.saturating_add(delta_v.0);

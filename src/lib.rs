@@ -25,17 +25,19 @@ use crate::element_menu::ElementMenu;
 use crate::fire::{FireElementSetup, ASH, FIRE};
 use crate::gas::{GasSetup, GAS};
 use crate::glass::GLASS;
-use crate::lava::LavaSetup;
+use crate::lava::{LavaSetup, LAVA};
 use crate::metal::{ElectronSetup, METAL};
 use crate::oil::OIL;
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
-use crate::water::WATER;
+use crate::water::{STEAM, WATER};
 use crate::world::World;
 use crate::glue::{GlueSetup, SOLID_GLUE};
 use itertools::{iproduct, Itertools};
 use lazy_static::{self as lazy_static_crate, lazy_static};
+use metal::ELECTRON;
 use rand::{thread_rng, Rng};
+use snow::SNOW;
 use std::collections::VecDeque;
 
 type SetupList = Vec<Box<dyn ElementSetup>>;
@@ -60,7 +62,8 @@ lazy_static! {
             default_setup(&OIL),
             default_setup(&CONWAY),
             Box::new(GlueSetup),
-            default_setup(&SOLID_GLUE)
+            default_setup(&SOLID_GLUE),
+            default_setup(&STEAM),
         ]
     };
 }
@@ -308,10 +311,19 @@ impl Pen for ElementPen {
                     }
                 };
                 if in_bounds(x, y) && world[point(x, y)].is_none() {
+                    let id = self.element.id;
                     world[point(x, y)] = Some(Tile::new(
                         ElementState::default(self.element.id()),
                         Vector { x: 0, y: 0 },
                         velocity,
+                        if id == FIRE.id || id == LAVA.id || id == ELECTRON.id {
+                            300
+                        } else if id == SNOW.id {
+                            -20
+                        } else {
+                            20
+                        }
+
                         //false,
                     ))
                 }

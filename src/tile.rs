@@ -28,6 +28,8 @@ pub struct Tile {
     //pub paused: bool,
     pub velocity: Vector,
     pub position: Vector,
+    // Celcius (for now)
+    pub temperature: i16,
     element_data: ElementData,
 }
 
@@ -36,18 +38,21 @@ impl Tile {
         element_state: ElementState,
         position: Vector,
         velocity: Vector,
+        temperature: i16,
         //paused: bool,
     ) -> Tile {
         Tile {
             element_data: ElementData::new(element_state),
             //paused,
+            temperature,
             position,
             velocity,
         }
     }
-    pub fn stationary(element_state: ElementState) -> Tile {
+    pub fn stationary(element_state: ElementState, temperature: i16) -> Tile {
         Tile {
             element_data: ElementData::new(element_state),
+            temperature,
             //paused: false,
             position: Vector { x: 0, y: 0 },
             velocity: Vector { x: 0, y: 0 },

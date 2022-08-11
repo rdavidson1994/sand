@@ -9,11 +9,17 @@ pub static SNOW: Element = Element {
     color: [0.9, 0.9, 1.0, 1.0],
     mass: 10,
     id: 11,
-    periodic_reaction: PeriodicReaction::DecayInto {
-        element_id: WATER.id(),
-        lifetime: 100,
-        rarity: 255,
-    },
+    periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
+        if this.temperature > 1 {
+            this.set_element(WATER.id());
+        }
+        Some(this)
+    }),
+    // periodic_reaction: PeriodicReaction::DecayInto {
+    //     element_id: WATER.id(),
+    //     lifetime: 100,
+    //     rarity: 255,
+    // },
     ..ELEMENT_DEFAULT
 };
 
