@@ -190,7 +190,7 @@ pub fn raw_neighbors(index: usize) -> impl Iterator<Item = usize> + 'static {
 
 fn apply_velocity(world: &mut World, motion_queue: &mut VecDeque<(usize, usize)>) -> bool {
     let mut needs_update = false;
-    // This makes more sense at the end, but borrowck didn't like it
+    // This makes more sense at the end, but borrow checker didn't like it
     // maybe check it later?
     motion_queue.clear();
     for i in 0..WORLD_SIZE as usize {
@@ -331,7 +331,7 @@ impl Pen for ElementPen {
 }
 
 pub fn game_loop() {
-    // Prepare the list of elements and their setup strcuts
+    // Prepare the list of elements and their setup structs
     lazy_static_crate::initialize(&SETUPS);
     lazy_static_crate::initialize(&ELEMENTS);
     let elem_count = SETUPS.len();
