@@ -87,6 +87,7 @@ impl App {
             }
             if self.turn % REACTION_PERIOD == 0 {
                 self.world.apply_periodic_reactions();
+                self.world.apply_thermal_diffusion();
             }
             apply_velocity(&mut self.world, &mut self.motion_queue);
             self.turn += 1;

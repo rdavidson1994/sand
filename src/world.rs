@@ -1,8 +1,11 @@
 use crate::element::{EFlag, Element, PeriodicReaction, FIXED, FLUID, GRAVITY, PAUSE_EXEMPT};
 use crate::tile::{ElementState, Tile};
 use crate::world_view::{CollisionView, NeighborhoodView};
-use crate::{adjacent_x, neighbor_count, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH};
+use crate::{
+    adjacent_x, neighbor_count, neighbors, PAUSE_VELOCITY, WORLD_HEIGHT, WORLD_SIZE, WORLD_WIDTH,
+};
 use rand::Rng;
+use std::convert::TryInto;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -267,6 +270,30 @@ impl World {
                     }
                 }
                 None => {}
+            }
+        }
+    }
+
+    pub fn apply_thermal_diffusion(&mut self) {
+        for i in 0..WORLD_SIZE as usize {
+            if self[i].is_some() {
+                let mut particle_count: usize = 1;
+                let mut total_temp: i32 = self[i].clone().map_or(0, |x| x.temperature as i32);
+                for j in neighbors(i) {
+                    if self[j].is_some() {
+                        particle_count += 1;
+                        total_temp += self[j].clone().map_or(0, |x| x.temperature as i32)
+                    }
+                }
+                let average_temp = total_temp / (particle_count as i32);
+                if let Some(tile) = &mut self[i] {
+                    tile.temperature = average_temp.try_into().unwrap();
+                }
+                for j in neighbors(i) {
+                    if let Some(tile) = &mut self[j] {
+                        tile.temperature = average_temp.try_into().unwrap();
+                    }
+                }
             }
         }
     }
