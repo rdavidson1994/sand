@@ -1,12 +1,14 @@
+use rand::{thread_rng, Rng};
+
 use crate::element::{Element, ElementId, ElementSetup, PAUSE_EXEMPT, PERFECT_RESTITUTION};
-use crate::fire::FIRE;
+use crate::fire::{FIRE, MAKES_WATER, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile};
+use crate::water::WATER;
 use crate::world::World;
 use crate::Vector;
 
 const EXPLOSION_VELOCITY: i8 = 50;
-
 const ADJ_VEL: i8 = EXPLOSION_VELOCITY;
 const DIAG_VEL: i8 = ((EXPLOSION_VELOCITY as f64) * 1.414 / 2.0) as i8; // i.e. times sqrt(2)/2
 
@@ -33,7 +35,11 @@ impl ElementSetup for GasSetup {
                 let mut new_tile = match world[j].take() {
                     Some(existing_tile) => existing_tile,
                     None => Tile::new(
-                        ElementState::default(FIRE.id()),
+                        if thread_rng().gen_bool((GAS.mass as f64) / (WATER.mass as f64)) {
+                            ElementState::new(FIRE.id(), MAKES_WATER)
+                        } else {
+                            ElementState::new(FIRE.id(), NO_ASH)
+                        },
                         Vector { x: 0, y: 0 },
                         Vector { x: 0, y: 0 },
                         (gas.temperature + fire.temperature) / 2,

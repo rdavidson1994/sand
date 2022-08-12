@@ -3,7 +3,7 @@ use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use rand::Rng;
 
-const OIL_BURN_TEMPERATURE : i16 = 280;
+const OIL_BURN_TEMPERATURE: i16 = 280;
 
 pub static OIL: Element = Element {
     flags: GRAVITY,
@@ -21,9 +21,19 @@ pub static OIL: Element = Element {
             println!("Burning oil!");
             this.temperature += 1000;
             if rand::thread_rng().gen_bool(0.5) {
-                this.velocity.x += 50 * if rand::thread_rng().gen_bool(0.5) { -1 } else { 1 }
+                this.velocity.x += 50
+                    * if rand::thread_rng().gen_bool(0.5) {
+                        -1
+                    } else {
+                        1
+                    }
             } else {
-                this.velocity.y += 50 * if rand::thread_rng().gen_bool(0.5) { -1 } else { 1 }
+                this.velocity.y += 50
+                    * if rand::thread_rng().gen_bool(0.5) {
+                        -1
+                    } else {
+                        1
+                    }
             }
         }
         Some(this)

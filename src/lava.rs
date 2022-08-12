@@ -54,9 +54,7 @@ pub static LAVA: Element = Element {
 
 pub struct LavaSetup;
 impl ElementSetup for LavaSetup {
-    fn register_reactions(&self, _world: &mut World) {
-
-    }
+    fn register_reactions(&self, _world: &mut World) {}
 
     fn build_element(&self) -> Element {
         LAVA.clone()

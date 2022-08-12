@@ -13,7 +13,7 @@ const CHARGED_TAIL: u8 = 2;
 const CHARGED_TAIL_COLOR: Color = [0.3, 0.3, 0.7, 1.0];
 
 const LIQUID_COLOR: Color = [0.7, 0.3, 0.5, 1.0];
-const METAL_MELT_TEMPERATURE : i16 = 1500;
+const METAL_MELT_TEMPERATURE: i16 = 1500;
 
 impl Tile {
     pub fn is_charged_metal(&self) -> bool {
