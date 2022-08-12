@@ -25,7 +25,7 @@ pub static FIRE: Element = Element {
     mass: 3,
     id: 4,
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
-        if thread_rng().gen_range(0, 100) == 0 {
+        if this.temperature < 300 || thread_rng().gen_range(0, 200) == 0 {
             return if thread_rng().gen_range(0, 3) == 0 && this.special_info() == MAKES_ASH {
                 this.set_element(ASH.id());
                 Some(this)
@@ -36,7 +36,7 @@ pub static FIRE: Element = Element {
 
         Some(this)
     }),
-    default_temperature: 300,
+    default_temperature: 500,
     ..ELEMENT_DEFAULT
 };
 
@@ -47,6 +47,7 @@ impl ElementSetup for FireElementSetup {
         world.register_collision_side_effect(&SAND, &FIRE, |mut sand, fire, mut world| {
             let mut rng = thread_rng();
             sand.set_element(FIRE.id());
+            sand.temperature += 400;
             world.for_neighbors_of_first(|square| match square {
                 Some(_tile) => {}
                 None => {

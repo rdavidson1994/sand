@@ -32,7 +32,7 @@ pub static METAL: Element = Element {
     }),
 
     periodic_reaction: PeriodicReaction::Some(|mut this, world| {
-        if this.temperature > 150 {
+        if this.temperature > 1500 {
             this.set_element(LIQUID_METAL.id())
         }
         match this.special_info() {
@@ -69,7 +69,7 @@ pub static LIQUID_METAL: Element = Element {
     mass: 10,
     id: 17,
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
-        if this.temperature < 149 {
+        if this.temperature < 1499 {
             this.set_element(METAL.id())
         }
         Some(this)

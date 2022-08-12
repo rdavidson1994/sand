@@ -20,7 +20,7 @@ pub static SAND: Element = Element {
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
         if this.temperature > 100 {
             this.edit_state(FIRE.id(), MAKES_ASH);
-            this.temperature = 300
+            this.temperature += 400
         }
         Some(this)
     }),

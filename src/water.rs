@@ -11,7 +11,7 @@ pub static WATER: Element = Element {
     mass: 8,
     id: 6,
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
-        if this.temperature > 22 {
+        if this.temperature > 100 {
             // Over designated boiling point, become steam
             this.set_element(STEAM.id())
         } else if this.temperature < 0 {
@@ -31,10 +31,11 @@ pub static STEAM: Element = Element {
     mass: 8,
     id: 16,
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
-        if this.temperature < 21 {
+        if this.temperature < 99 {
             this.set_element(WATER.id())
         }
         Some(this)
     }),
+    default_temperature: 120,
     ..ELEMENT_DEFAULT
 };

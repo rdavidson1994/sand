@@ -3,7 +3,7 @@ use crate::fire::{FIRE, NO_ASH};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
-use crate::{Element, ElementId, ElementSetup, METAL, ROCK};
+use crate::{Element, ElementId, ElementSetup, ROCK};
 use rand::Rng;
 
 pub static LAVA: Element = Element {
@@ -39,8 +39,8 @@ pub static LAVA: Element = Element {
                             this.temperature,
                         ));
                         // Every time you create fire, roll to cool into rock
-                        if rand::thread_rng().gen_range(0, 30) == 0 {
-                            this.set_element(ROCK.id());
+                        if this.temperature < 800 {
+                            this.set_element(ROCK.id())
                         }
                     }
                 }
@@ -48,18 +48,14 @@ pub static LAVA: Element = Element {
         }
         Some(this)
     }),
-    default_temperature: 300,
+    default_temperature: 1000,
     ..ELEMENT_DEFAULT
 };
 
 pub struct LavaSetup;
 impl ElementSetup for LavaSetup {
-    fn register_reactions(&self, world: &mut World) {
-        // Lava melts metal
-        world.register_collision_reaction(&METAL, &LAVA, |mut metal, lava| {
-            metal.set_element(LAVA.id());
-            (Some(metal), Some(lava))
-        })
+    fn register_reactions(&self, _world: &mut World) {
+
     }
 
     fn build_element(&self) -> Element {
