@@ -46,8 +46,8 @@ impl ElementSetup for FireElementSetup {
         // Fire burns sand
         world.register_collision_side_effect(&SAND, &FIRE, |mut sand, fire, mut world| {
             let mut rng = thread_rng();
-            sand.set_element(FIRE.id());
             sand.temperature += 400;
+            sand.edit_state(FIRE.id(), MAKES_ASH);
             world.for_neighbors_of_first(|square| match square {
                 Some(_tile) => {}
                 None => {

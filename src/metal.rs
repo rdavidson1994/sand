@@ -13,6 +13,7 @@ const CHARGED_TAIL: u8 = 2;
 const CHARGED_TAIL_COLOR: Color = [0.3, 0.3, 0.7, 1.0];
 
 const LIQUID_COLOR: Color = [0.7, 0.3, 0.5, 1.0];
+const METAL_MELT_TEMPERATURE : i16 = 1500;
 
 impl Tile {
     pub fn is_charged_metal(&self) -> bool {
@@ -32,7 +33,7 @@ pub static METAL: Element = Element {
     }),
 
     periodic_reaction: PeriodicReaction::Some(|mut this, world| {
-        if this.temperature > 1500 {
+        if this.temperature > METAL_MELT_TEMPERATURE {
             this.set_element(LIQUID_METAL.id())
         }
         match this.special_info() {
@@ -69,11 +70,12 @@ pub static LIQUID_METAL: Element = Element {
     mass: 10,
     id: 17,
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
-        if this.temperature < 1499 {
+        if this.temperature < METAL_MELT_TEMPERATURE - 1 {
             this.set_element(METAL.id())
         }
         Some(this)
     }),
+    default_temperature: METAL_MELT_TEMPERATURE + 20,
     ..ELEMENT_DEFAULT
 };
 
