@@ -1,7 +1,7 @@
 use rand::{thread_rng, Rng};
 
 use crate::element::{Element, ElementId, ElementSetup, PAUSE_EXEMPT, PERFECT_RESTITUTION};
-use crate::fire::{FIRE, MAKES_WATER, NO_ASH};
+use crate::fire::{BURNS_CLEAN, FIRE, MAKES_WATER};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile};
 use crate::water::WATER;
@@ -38,7 +38,7 @@ impl ElementSetup for GasSetup {
                         if thread_rng().gen_bool((GAS.mass as f64) / (WATER.mass as f64)) {
                             ElementState::new(FIRE.id(), MAKES_WATER)
                         } else {
-                            ElementState::new(FIRE.id(), NO_ASH)
+                            ElementState::new(FIRE.id(), BURNS_CLEAN)
                         },
                         Vector { x: 0, y: 0 },
                         Vector { x: 0, y: 0 },

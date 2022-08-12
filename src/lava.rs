@@ -1,5 +1,5 @@
 use crate::element::{PeriodicReaction, GRAVITY, PAUSE_EXEMPT};
-use crate::fire::{FIRE, NO_ASH};
+use crate::fire::{BURNS_CLEAN, FIRE};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use crate::tile::{ElementState, Tile, Vector};
 use crate::world::World;
@@ -21,7 +21,7 @@ pub static LAVA: Element = Element {
                     // Sprinkle fire into empty ones
                     if rand::thread_rng().gen_range(0, 150) == 0 {
                         world[i] = Some(Tile::new(
-                            ElementState::new(FIRE.id(), NO_ASH),
+                            ElementState::new(FIRE.id(), BURNS_CLEAN),
                             Vector {
                                 x: rand::thread_rng().gen_range(-126, 127),
                                 y: rand::thread_rng().gen_range(-126, 127),

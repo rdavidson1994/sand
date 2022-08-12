@@ -1,5 +1,5 @@
 use crate::element::{Element, PeriodicReaction, GRAVITY};
-use crate::fire::{FIRE, NO_ASH};
+use crate::fire::{BURNS_CLEAN, FIRE};
 use crate::simple_elements::ELEMENT_DEFAULT;
 use rand::Rng;
 
@@ -17,7 +17,7 @@ pub static OIL: Element = Element {
             tile.velocity.x = tile.velocity.x.saturating_add(delta_x);
         }
         if this.temperature > OIL_BURN_TEMPERATURE {
-            this.edit_state(FIRE.id(), NO_ASH);
+            this.edit_state(FIRE.id(), BURNS_CLEAN);
             println!("Burning oil!");
             this.temperature += 1000;
             if rand::thread_rng().gen_bool(0.5) {

@@ -6,7 +6,7 @@ use crate::world::World;
 use rand::{thread_rng, Rng};
 
 #[allow(dead_code)]
-pub const NO_ASH: u8 = 1;
+pub const BURNS_CLEAN: u8 = 1;
 pub const MAKES_ASH: u8 = 2;
 pub const MAKES_WATER: u8 = 3;
 
