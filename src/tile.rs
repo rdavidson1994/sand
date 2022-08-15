@@ -83,6 +83,10 @@ impl Tile {
         });
     }
 
+    pub fn adjust_info(&mut self, delta: i16) {
+        self.element_data.adjust(delta);
+    }
+
     pub fn increment_info(&mut self) {
         self.edit_state(
             ElementId(self.element_id()),

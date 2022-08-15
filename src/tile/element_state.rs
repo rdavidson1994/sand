@@ -40,6 +40,22 @@ impl ElementData {
         self.current.element_id
     }
 
+    pub fn adjust(&mut self, delta: i16) {
+        let old = self.staged.special_info.as_u8() as i16;
+        let new_or_overflow = old.saturating_add(delta);
+        let new = if new_or_overflow > 255i16 {
+            255u8
+        } else if new_or_overflow < 1i16 {
+            1u8
+        } else {
+            new_or_overflow as u8
+        };
+        self.stage(ElementState {
+            element_id: self.staged.element_id,
+            special_info: SpecialElementInfo::new(new),
+        })
+    }
+
     #[allow(dead_code)]
     pub fn as_ref(&self) -> &ElementState {
         &self.current

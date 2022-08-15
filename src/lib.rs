@@ -1,6 +1,7 @@
 #![allow(clippy::new_without_default)]
 mod app;
 mod conway;
+mod dirt;
 mod element;
 mod element_menu;
 mod fire;
@@ -20,6 +21,7 @@ mod world_view;
 
 use crate::app::App;
 use crate::conway::CONWAY;
+use crate::dirt::DirtSetup;
 use crate::element::{Color, DefaultSetup, Element, ElementId, ElementSetup, FIXED};
 use crate::element_menu::ElementMenu;
 use crate::fire::{FireElementSetup, ASH, FIRE};
@@ -63,6 +65,7 @@ lazy_static! {
             default_setup(&SOLID_GLUE),
             default_setup(&STEAM),
             default_setup(&LIQUID_METAL),
+            Box::new(DirtSetup),
         ]
     };
 }
