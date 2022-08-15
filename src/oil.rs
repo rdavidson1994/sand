@@ -18,7 +18,6 @@ pub static OIL: Element = Element {
         }
         if this.temperature > OIL_BURN_TEMPERATURE {
             this.edit_state(FIRE.id(), BURNS_CLEAN);
-            println!("Burning oil!");
             this.temperature += 1000;
             if rand::thread_rng().gen_bool(0.5) {
                 this.velocity.x += 50
