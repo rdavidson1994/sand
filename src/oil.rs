@@ -20,19 +20,19 @@ pub static OIL: Element = Element {
             this.edit_state(FIRE.id(), BURNS_CLEAN);
             this.temperature += 1000;
             if rand::thread_rng().gen_bool(0.5) {
-                this.velocity.x += 50
-                    * if rand::thread_rng().gen_bool(0.5) {
-                        -1
+                this.velocity.x = this.velocity.x.saturating_add(
+                    if rand::thread_rng().gen_bool(0.5) {
+                        -50
                     } else {
-                        1
-                    }
+                        50
+                    });
             } else {
-                this.velocity.y += 50
-                    * if rand::thread_rng().gen_bool(0.5) {
-                        -1
+                this.velocity.y = this.velocity.y.saturating_add(
+                    if rand::thread_rng().gen_bool(0.5) {
+                        -50
                     } else {
-                        1
-                    }
+                        50
+                    });
             }
         }
         Some(this)
