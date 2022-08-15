@@ -33,6 +33,12 @@ pub static STEAM: Element = Element {
     periodic_reaction: PeriodicReaction::Some(|mut this, _world| {
         if this.temperature < 99 {
             this.set_element(WATER.id())
+        } else {
+            // Jiggle, to keep boiling water from staying still
+            if this.velocity.x.abs() < 2 && this.velocity.y.abs() < 2 {
+                this.velocity.x += rand::thread_rng().gen_range(-3, 3 + 1);
+                this.velocity.y += rand::thread_rng().gen_range(-3, 3 + 1);
+            }
         }
         Some(this)
     }),

@@ -278,20 +278,39 @@ impl World {
         for i in 0..WORLD_SIZE as usize {
             if self[i].is_some() {
                 let mut particle_count: usize = 1;
-                let mut total_temp: i32 = self[i].clone().map_or(0, |x| x.temperature as i32);
+                let mut total_temp: i64 = self[i].as_ref().map_or(0, |x| x.temperature as i64);
                 for j in neighbors(i) {
                     if self[j].is_some() {
                         particle_count += 1;
-                        total_temp += self[j].clone().map_or(0, |x| x.temperature as i32)
+                        total_temp += self[j].as_ref().map_or(0, |x| x.temperature as i64)
                     }
                 }
-                let average_temp = total_temp / (particle_count as i32);
+                let particle_count_large = particle_count as i64;
+                let average_temp = total_temp / particle_count_large;
+                let average_temp_remainder = total_temp % particle_count_large;
+                let remainder_ratio = (average_temp_remainder as f64) / (particle_count as f64);
+                let adjustment_ratio = remainder_ratio.abs();
+                let adjustment = if remainder_ratio.is_sign_negative() {
+                    -1i16
+                } else {
+                    1i16
+                };
+                let mut rng = rand::thread_rng();
+                let mut one_maybe = || {
+                    if rng.gen_bool(adjustment_ratio) {
+                        adjustment
+                    } else {
+                        0i16
+                    }
+                };
                 if let Some(tile) = &mut self[i] {
                     tile.temperature = average_temp.try_into().unwrap();
+                    tile.temperature += one_maybe();
                 }
                 for j in neighbors(i) {
                     if let Some(tile) = &mut self[j] {
                         tile.temperature = average_temp.try_into().unwrap();
+                        tile.temperature += one_maybe();
                     }
                 }
             }
