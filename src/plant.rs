@@ -44,7 +44,7 @@ pub static PLANT: Element = Element {
         if let Some(below) = world.below() {
             if below.special_info() > 10
                 && this.special_info() < 192
-                && below.element_id() == PLANT.id
+                && (below.element_id() == PLANT.id || below.element_id() == ROOT.id)
             {
                 this.adjust_info(10);
                 below.adjust_info(-10);
