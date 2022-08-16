@@ -8,7 +8,7 @@ use crate::{
 const DRY_COLOR: Color = [0.6, 0.6, 0.2, 1.0];
 const WET_64_COLOR: Color = [0.5, 0.5, 0.25, 1.0];
 const WET_128_COLOR: Color = [0.4, 0.4, 0.2, 1.0];
-const WET_192_COLOR: Color = [0.3, 0.3, 0.15, 1.0];
+const WET_160_COLOR: Color = [0.3, 0.3, 0.15, 1.0];
 const WET_255_COLOR: Color = [0.2, 0.2, 0.1, 1.0];
 
 pub static DIRT: Element = Element {
@@ -23,8 +23,8 @@ pub static DIRT: Element = Element {
             &WET_64_COLOR
         } else if moisture <= 128 {
             &WET_128_COLOR
-        } else if moisture <= 192 {
-            &WET_192_COLOR
+        } else if moisture <= 160 {
+            &WET_160_COLOR
         } else {
             &WET_255_COLOR
         }
