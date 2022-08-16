@@ -10,35 +10,26 @@ pub static SEED: Element = Element {
     color: [0.5, 0.6, 0.1, 1.0],
     mass: 10,
     id: 19,
-    periodic_reaction: PeriodicReaction::Some(|this, mut world| {
+    periodic_reaction: PeriodicReaction::Some(|mut this, mut world| {
         let mut should_grow = false;
         let mut total_moisture: u8 = 0;
         if this.velocity.is_zero() {
-            return Some(this);
-        }
-        let dirt_or_empty_above = world
-            .above()
-            .as_ref()
-            .map_or(true, |x| x.element_id() == DIRT.id);
-        if dirt_or_empty_above {
-            world.for_each_neighbor(|neighbor| {
-                let moisture = neighbor.as_ref().map_or(0, |x| dirt_moisture(&x));
-                if moisture > 64 {
-                    if let Some(neighbor) = neighbor {
-                        total_moisture = total_moisture.saturating_add(10);
-                        neighbor.adjust_info(-10);
+            let dirt_or_empty_above = world
+                .above()
+                .as_ref()
+                .map_or(true, |x| x.element_id() == DIRT.id);
+
+            if dirt_or_empty_above {
+                world.for_each_neighbor(|neighbor| {
+                    if neighbor.as_ref().map_or(0, |x| dirt_moisture(&x)) > 64 {
                         should_grow = true;
                     }
-                }
-            });
-            if should_grow && total_moisture > 20 {
-                *world.above() = Some(Tile::stationary(
-                    ElementState::new(PLANT.id(), total_moisture),
-                    this.temperature,
-                ))
+                });
             }
         }
-
+        if should_grow {
+            this.set_element(ROOT.id())
+        }
         Some(this)
     }),
     ..ELEMENT_DEFAULT
@@ -79,9 +70,39 @@ pub static PLANT: Element = Element {
 
 pub static ROOT: Element = Element {
     flags: FIXED,
-    color: [0.3, 0.3, 0.1, 1.0],
+    color: [0.9, 0.7, 0.1, 1.0],
     mass: 10,
     id: 21,
-    periodic_reaction: PeriodicReaction::Some(|this, mut _world| Some(this)),
+    periodic_reaction: PeriodicReaction::Some(|this, mut world| {
+        let mut should_grow = false;
+        let mut total_moisture: u8 = 0;
+        if this.velocity.is_zero() {
+            let dirt_or_empty_above = world
+                .above()
+                .as_ref()
+                .map_or(true, |x| x.element_id() == DIRT.id);
+
+            if dirt_or_empty_above {
+                world.for_each_neighbor(|neighbor| {
+                    let moisture = neighbor.as_ref().map_or(0, |x| dirt_moisture(&x));
+                    if moisture > 64 {
+                        if let Some(neighbor) = neighbor {
+                            total_moisture = total_moisture.saturating_add(10);
+                            neighbor.adjust_info(-10);
+                            should_grow = true;
+                        }
+                    }
+                });
+                if should_grow && total_moisture > 10 {
+                    *world.above() = Some(Tile::stationary(
+                        ElementState::new(PLANT.id(), total_moisture),
+                        this.temperature,
+                    ))
+                }
+            }
+        }
+
+        Some(this)
+    }),
     ..ELEMENT_DEFAULT
 };
