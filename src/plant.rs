@@ -75,29 +75,34 @@ pub static ROOT: Element = Element {
     periodic_reaction: PeriodicReaction::Some(|this, mut world| {
         let mut should_grow = false;
         let mut total_moisture: u8 = 0;
-        if this.velocity.is_zero() {
-            let dirt_or_empty_above = world
-                .above()
-                .as_ref()
-                .map_or(true, |x| x.element_id() == DIRT.id);
+        let dirt_or_empty_above = world
+            .above()
+            .as_ref()
+            .map_or(true, |x| x.element_id() == DIRT.id);
 
-            if dirt_or_empty_above {
-                world.for_each_neighbor(|neighbor| {
-                    let moisture = neighbor.as_ref().map_or(0, |x| dirt_moisture(&x));
-                    if moisture > 64 {
-                        if let Some(neighbor) = neighbor {
-                            total_moisture = total_moisture.saturating_add(10);
-                            neighbor.adjust_info(-10);
-                            should_grow = true;
-                        }
+        if dirt_or_empty_above {
+            world.for_each_neighbor(|neighbor| {
+                let moisture = neighbor.as_ref().map_or(0, |x| dirt_moisture(&x));
+                if moisture > 64 {
+                    if let Some(neighbor) = neighbor {
+                        total_moisture = total_moisture.saturating_add(10);
+                        neighbor.adjust_info(-10);
+                        should_grow = true;
                     }
-                });
-                if should_grow && total_moisture > 10 {
-                    *world.above() = Some(Tile::stationary(
-                        ElementState::new(PLANT.id(), total_moisture),
-                        this.temperature,
-                    ))
                 }
+            });
+
+            if should_grow && total_moisture > 10 {
+                *world.above() = Some(Tile::stationary(
+                    ElementState::new(PLANT.id(), total_moisture),
+                    this.temperature,
+                ))
+            }
+        }
+
+        if let Some(tile) = world.below() {
+            if dirt_moisture(tile) > 150 {
+                tile.set_element(ROOT.id());
             }
         }
 
