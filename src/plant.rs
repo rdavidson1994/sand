@@ -12,7 +12,6 @@ pub static SEED: Element = Element {
     id: 19,
     periodic_reaction: PeriodicReaction::Some(|mut this, mut world| {
         let mut should_grow = false;
-        let mut total_moisture: u8 = 0;
         if this.velocity.is_zero() {
             let dirt_or_empty_above = world
                 .above()
