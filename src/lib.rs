@@ -11,6 +11,7 @@ mod glue;
 mod lava;
 mod metal;
 mod oil;
+mod plant;
 mod simple_elements;
 mod snow;
 mod tile;
@@ -31,6 +32,7 @@ use crate::glue::{GlueSetup, SOLID_GLUE};
 use crate::lava::LavaSetup;
 use crate::metal::{ElectronSetup, LIQUID_METAL, METAL};
 use crate::oil::OIL;
+use crate::plant::{PLANT, ROOT, SEED};
 use crate::simple_elements::{ELEMENT_DEFAULT, ROCK, SAND, WALL};
 use crate::tile::{ElementState, Tile, Vector};
 use crate::water::{STEAM, WATER};
@@ -66,6 +68,9 @@ lazy_static! {
             default_setup(&STEAM),
             default_setup(&LIQUID_METAL),
             Box::new(DirtSetup),
+            default_setup(&SEED),
+            default_setup(&PLANT),
+            default_setup(&ROOT),
         ]
     };
 }
