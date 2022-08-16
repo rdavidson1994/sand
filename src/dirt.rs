@@ -32,9 +32,9 @@ pub static DIRT: Element = Element {
     periodic_reaction: PeriodicReaction::Some(|mut this, mut world| {
         world.for_each_neighbor(|neighbor| match neighbor {
             Some(tile) => {
-                if dirt_moisture(tile) > dirt_moisture(&this) {
-                    tile.edit_state(DIRT.id(), tile.special_info() - 1);
-                    this.edit_state(DIRT.id(), this.special_info() + 1);
+                if dirt_moisture(tile) > dirt_moisture(&this).saturating_add(5) {
+                    tile.adjust_info(-1);
+                    this.adjust_info(1);
                 }
             }
             None => (),

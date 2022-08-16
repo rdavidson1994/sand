@@ -88,21 +88,11 @@ impl Tile {
     }
 
     pub fn increment_info(&mut self) {
-        self.edit_state(
-            ElementId(self.element_id()),
-            self.special_info().saturating_add(1),
-        );
+        self.adjust_info(1);
     }
 
     pub fn decrement_info(&mut self) {
-        let mut new_info = self.special_info().saturating_sub(1);
-        if new_info < 1 {
-            // 0 is forbidden.
-            // TODO: This is a leaky abstraction - need to push it
-            // down into the ElementInfo layer
-            new_info = 1;
-        }
-        self.edit_state(ElementId(self.element_id()), new_info);
+        self.adjust_info(-1);
     }
 
     pub fn has_state(&self, element_id: ElementId, special_info: u8) -> bool {
